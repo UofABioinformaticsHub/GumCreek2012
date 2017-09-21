@@ -1,0 +1,170 @@
+---
+title: "SNP Filtering"
+author: "Steve Pederson"
+date: "21 September 2017"
+output: 
+  html_document: 
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(magrittr)
+library(GenomicRanges)
+library(parallel)
+library(reshape2)
+nCores <- 3
+```
+
+
+# Introduction
+
+This file takes the raw output from `Stacks` and filters the complete set of SNPs to arrive at the final list of SNPs used for downstream analysis.
+The two populations are referred to below as *Gum Creek* (1996) and *Oraparinna* (2012).
+
+## Outline of selection process for SNPs to be analysed
+
+The filtering steps involved are:
+
+1. Removal of SNPs located on sex chromosomes
+2. Removal of *fixed* alleles, defined as `P > 0.95` in both populations and `P = 0.5` in both populations
+3. Removal of SNPs within the *PstI* restriction site as these would be the result of sequencing errors
+4. Removal of SNPs not observed in 1996 as these would be likely due to migration not selection
+5. Removal of SNPs within the same GBS tag, with identical allele frequencies
+6. Removal of SNPs called by `Stacks` to be in separate tags, but which share identical genomic co-ordinates
+
+Beyond these steps additional criteria were applied to select SNPs of interest.
+SNPs selected for downstream analysis must be:
+
+1. Within 40kb of a gene
+2. Identified in >75% of individuals within both populations
+
+`Stacks` identifies `P` (major) and `Q` (minor) alleles within each population, and an additional proessing step was included to ensure the `P` allele in both populations was the SNP determined to be the `P` allele in the 1996 population.
+
+# Selection of SNPs for analysis
+
+## Genome Setup
+
+Genome information was loaded with chromosome & scaffold identifiers from NCBI, GenBank, RefSeq and Ensembl along with the length of each chromosome/scaffold.
+
+```{r}
+chrNames <- file.path("data", "chrMapping.txt") %>%
+  read_delim(delim = "\t")
+```
+
+A `Seqinfo` object was formed for all downstream `GRanges` objects using Ensembl chromosome identifiers for `seqnames`.
+
+```{r}
+sq <- Seqinfo(seqnames = chrNames$Ensembl,
+              seqlengths = chrNames$Length,
+              isCircular = grepl("^MT$", chrNames$Ensembl), 
+              genome = "OryCun2.0")
+```
+
+
+## Loading SNP Data
+
+```{r, sumData, cache=TRUE, dependson='chrNames'}
+sumData <- file.path("data", "batch_3.sumstats.tsv") %>%
+  read_delim(delim = "\t", col_names = TRUE, skip = 2) %>%
+  dplyr::select(-contains("Batch"), -contains("Pi"), -contains("Fis")) %>%
+  mutate(RefSeq = gsub("^gi\\|.+\\|ref\\|(.+)\\|$", "\\1", Chr),
+         snpID = paste(`Locus ID`, Col, sep="_"),
+         Private = as.logical(Private)) %>%
+  left_join(chrNames, by = "RefSeq") %>%
+  dplyr::select(Ensembl, Chromosome, BP,
+                `Locus ID`, Col, snpID,
+                `Pop ID`, contains("Nuc"), N, P,
+                contains("Obs"), contains("Exp"),
+                Private) %>%
+  arrange(Chromosome, BP, `Pop ID`)
+```
+
+The `stacks` summary output was loaded, renaming chromosomes to the `chr1, chr2, ...` format.
+This object contained information for `r length(unique(sumData$snpID))` SNPs across `r length(unique(sumData[["Locus ID"]]))` GBS tags.
+
+#### Removal of SNPs on Sex Chromosomes
+
+```{r}
+sumData %<>% filter(Chromosome != "chrX")
+```
+
+This reduced the dataset to `r length(unique(sumData$snpID))` SNPs across `r length(unique(sumData[["Locus ID"]]))` GBS tags.
+
+#### Identifying Fixed SNPs
+
+```{r}
+fixedSNPs <- sumData %>%
+  group_by(snpID) %>%
+  summarise(minP = min(P),
+            maxP = max(P),
+            both50 = all(minP == 0.5, maxP == 0.5)) %>%
+  filter(minP > 0.95 | both50)
+```
+
+This marked `r nrow(fixedSNPs)` SNPs for removal.
+
+#### Identifying SNPs in the Restriction Site
+
+```{r}
+rsSNPs <- filter(sumData, Col < 3) %>%
+  distinct(snpID)
+```
+
+This marked a further `r nrow(rsSNPs)` SNPs for removal.
+
+
+#### Identifying SNPs Not Detected in 1996
+
+```{r}
+uniq2Ora <- filter(sumData, `Pop ID` == 1, P == 1) 
+```
+
+This marked `r nrow(uniq2Ora)` SNPs for removal.
+
+```{r}
+rmSNPs <- unique(c(fixedSNPs$snpID,
+                   rsSnps$snpID,
+                   uniq2Ora$snpID))
+```
+
+The combination of the above three steps marked `r length(rmSnps)` for removal.
+
+#### Identifying Non-Redundant SNPs
+
+```{r, rmRedundant}
+bestInTag <- sumData %>% 
+  filter(!snpID %in% rmSNPs) %>%
+  split(f = .$`Locus ID`) %>% 
+  mclapply(dplyr::select,snpID, `Pop ID`, N, mc.cores = nCores) %>% 
+  mclapply(spread,`Pop ID`, N, mc.cores = nCores) %>% 
+  mclapply(distinct, `1`, `2`, .keep_all = TRUE, mc.cores = nCores) %>% 
+  bind_rows %>%
+  dplyr::select(snpID)
+```
+
+#### Removal of SNPs Duplicated in Multiple Tags
+
+```{r}
+bestNoDups <- sumData %>%
+  filter(snpID %in% bestInTag$snpID) %>%
+  group_by(Chromosome, BP, snpID) %>%
+  summarise(N = sum(N)) %>%
+  ungroup() %>%
+  arrange(Chromosome, BP, N) %>%
+  distinct(Chromosome, BP, .keep_all = TRUE)
+```
+
+## Preparation of Initial Filtered List
+
+```{r}
+sumData %<>%
+  filter(snpID %in% bestNoDups$snpID)
+```
+
+This gave a total of `r length(unique(sumData$snpID))` SNPs across `r length(unique(sumData[["Locus ID"]]))` GBS tags as the best candidates for downstream analysis.
