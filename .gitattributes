@@ -1,1 +1,2 @@
 data/batch_3.sumstats.tsv filter=lfs diff=lfs merge=lfs -text
+data/gpData.RDS filter=lfs diff=lfs merge=lfs -text
