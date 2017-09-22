@@ -15,10 +15,11 @@ knitr::opts_chunk$set(echo = TRUE,
 ```{r}
 library(tidyverse)
 library(magrittr)
+library(rtracklayer)
 library(GenomicRanges)
 library(parallel)
 library(reshape2)
-nCores <- 3
+nCores <- min(12, detectCores() - 1)
 ```
 
 
@@ -53,7 +54,7 @@ SNPs selected for downstream analysis must be:
 Genome information was loaded with chromosome & scaffold identifiers from NCBI, GenBank, RefSeq and Ensembl along with the length of each chromosome/scaffold.
 
 ```{r}
-chrNames <- file.path("data", "chrMapping.txt") %>%
+chrNames <- file.path("..", "data", "chrMapping.txt") %>%
   read_delim(delim = "\t")
 ```
 
@@ -66,11 +67,22 @@ sq <- Seqinfo(seqnames = chrNames$Ensembl,
               genome = "OryCun2.0")
 ```
 
+## Loading Genes
+
+The get of defined genes were loaded from Ensembl Build 84
+
+```{r}
+allGenes <- file.path("..", "data","Oryctolagus_cuniculus.OryCun2.0.84.gff3.gz") %>%
+  import.gff3(feature.type = "gene") 
+seqinfo(allGenes) <- sq[seqnames(seqinfo(allGenes))]
+```
+
 
 ## Loading SNP Data
 
 ```{r, sumData, cache=TRUE, dependson='chrNames'}
-sumData <- file.path("data", "batch_3.sumstats.tsv") %>%
+sumData <- file.path("..", "data", "batch_3.sumstats.tsv.gz") %>%
+  gzfile() %>%
   read_delim(delim = "\t", col_names = TRUE, skip = 2) %>%
   dplyr::select(-contains("Batch"), -contains("Pi"), -contains("Fis")) %>%
   mutate(RefSeq = gsub("^gi\\|.+\\|ref\\|(.+)\\|$", "\\1", Chr),
@@ -82,19 +94,49 @@ sumData <- file.path("data", "batch_3.sumstats.tsv") %>%
                 `Pop ID`, contains("Nuc"), N, P,
                 contains("Obs"), contains("Exp"),
                 Private) %>%
-  arrange(Chromosome, BP, `Pop ID`)
+  arrange(Chromosome, BP, snpID, `Pop ID`)
 ```
 
 The `stacks` summary output was loaded, renaming chromosomes to the `chr1, chr2, ...` format.
 This object contained information for `r length(unique(sumData$snpID))` SNPs across `r length(unique(sumData[["Locus ID"]]))` GBS tags.
 
-#### Removal of SNPs on Sex Chromosomes
+### Conversion of SNPs to GRanges
 
 ```{r}
-sumData %<>% filter(Chromosome != "chrX")
+snp2GR <- sumData %>%
+  distinct(snpID, .keep_all = TRUE) %>%
+  makeGRangesFromDataFrame(seqinfo = sq,
+                           keep.extra.columns=TRUE,
+                           seqnames.field = "Ensembl",
+                           start.field = "BP",
+                           end.field = "BP",
+                           ignore.strand = TRUE) %>%
+  extract(, c("Locus ID", "snpID")) %>%
+  set_names(.$snpID) %>%
+  subset(seqnames != "X") 
 ```
 
-This reduced the dataset to `r length(unique(sumData$snpID))` SNPs across `r length(unique(sumData[["Locus ID"]]))` GBS tags.
+The locations for all SNPs were converted to a `GRanges` object removing any on Chromosome `X`.
+This gave an initial list of `r length(snp2GR)` SNPs across `r length(unique(snp2GR$`Locus ID`))` GBS tags.
+
+### Selection of SNPs Near Genes
+
+```{r}
+snpNearGene <- snp2GR %>%
+  resize(80001, fix = "center") %>%
+  trim() %>%
+  subsetByOverlaps(allGenes) %>%
+  names()
+```
+
+```{r}
+sumData %<>% filter(snpID %in% snpNearGene)
+```
+
+Before filtering based on population frequencies or sample size, the list of candidate SNPs was first restricted to the `r length(snpNearGene)` SNPs within $\pm 40$kb of a gene.
+This represented `r length(unique(sumData[["Locus ID"]]))` GBS tags.
+
+### FIltering Based on Data Observations
 
 #### Identifying Fixed SNPs
 
@@ -127,10 +169,33 @@ uniq2Ora <- filter(sumData, `Pop ID` == 1, P == 1)
 
 This marked `r nrow(uniq2Ora)` SNPs for removal.
 
+### Identifying SNPs With Low Detection Rates
+
+```{r}
+minSamp <- sumData %>% 
+  group_by(`Pop ID`) %>% 
+  summarise(N = max(N)) %>%
+  mutate(minN = ceiling(0.75*N)) %>%
+  dplyr::select(`Pop ID`, minN)
+```
+
+
+```{r}
+lowSamp <- sumData %>%
+  left_join(minSamp) %>%
+  mutate(keep = N > minN) %>%
+  group_by(snpID) %>%
+  summarise(keep = sum(keep) == 2) %>%
+  filter(!keep) %>%
+  dplyr::select(snpID)
+```
+
+
 ```{r}
 rmSNPs <- unique(c(fixedSNPs$snpID,
-                   rsSnps$snpID,
-                   uniq2Ora$snpID))
+                   rsSNPs$snpID,
+                   uniq2Ora$snpID,
+                   lowSamp$snpID))
 ```
 
 The combination of the above three steps marked `r length(rmSnps)` for removal.
@@ -138,15 +203,20 @@ The combination of the above three steps marked `r length(rmSnps)` for removal.
 #### Identifying Non-Redundant SNPs
 
 ```{r, rmRedundant}
-bestInTag <- sumData %>% 
-  filter(!snpID %in% rmSNPs) %>%
-  split(f = .$`Locus ID`) %>% 
-  mclapply(dplyr::select,snpID, `Pop ID`, N, mc.cores = nCores) %>% 
-  mclapply(spread,`Pop ID`, N, mc.cores = nCores) %>% 
-  mclapply(distinct, `1`, `2`, .keep_all = TRUE, mc.cores = nCores) %>% 
+bestInTag <- sumData %>%
+  dplyr::filter(!snpID %in% rmSNPs) %>%
+  split(f = .$`Locus ID`) %>%
+  mclapply(function(x){
+    dcast(x[c("snpID", "Pop ID", "N")], snpID ~ `Pop ID`) %>%
+      distinct(`1`, `2`, .keep_all = TRUE)
+  }, mc.cores = nCores) %>%
   bind_rows %>%
   dplyr::select(snpID)
 ```
+
+Where multiple SNPs were present in a tag, with identical allele frequencies and identification rates, one was selected at random.
+This yielded a list of `r nrow(bestInTag)` SNPs.
+
 
 #### Removal of SNPs Duplicated in Multiple Tags
 
@@ -160,11 +230,16 @@ bestNoDups <- sumData %>%
   distinct(Chromosome, BP, .keep_all = TRUE)
 ```
 
-## Preparation of Initial Filtered List
+Some genomic positions were also identified in more than one GBS tag, and the ones with the highest number of identified samples were selected.
+If both were identical, the one was selected at random.
 
 ```{r}
-sumData %<>%
-  filter(snpID %in% bestNoDups$snpID)
+sumData %<>% filter(snpID %in% bestNoDups$snpID)
 ```
 
+
+## Preparation of Initial Filtered List
+
 This gave a total of `r length(unique(sumData$snpID))` SNPs across `r length(unique(sumData[["Locus ID"]]))` GBS tags as the best candidates for downstream analysis.
+
+## Correction of P & Q Nucleotides
