@@ -53,10 +53,9 @@ ncbiReport <- file.path("..", "data", "GCF_000003625.3_OryCun2.0_assembly_report
 ensUsesGB <- grepl("scaffold",ncbiReport$`Sequence-Role`)
 ncbiReport$Ensembl <- ncbiReport$`Sequence-Name`
 ncbiReport$Ensembl[ensUsesGB] <- gsub("\\.[0-9]$", "", ncbiReport$`GenBank-Accn`[ensUsesGB])
-ncbi2Ens <- with(ncbiReport,
-                 data.frame(Chr = Ensembl,
-                            Length = `Sequence-Length`,
-                            row.names = `RefSeq-Accn`))
+ncbi2Ens <- with(ncbiReport, data.frame(Chr = Ensembl, 
+                                        Length = `Sequence-Length`,
+                                        row.names = `RefSeq-Accn`))
 ```
 
 Gene information was obtained from Ensembl Build 84 and loaded 
@@ -149,13 +148,10 @@ minSamp <- sumData %>%
 ```
 
 
-----------------------------
-Pop ID      N   Min Required
--------- ---- --------------
-1          55             42
-
-2          53             40
-----------------------------
+| Pop ID |  N | Min Required |
+|:-------|---:|-------------:|
+| 1      | 55 |           42 |
+| 2      | 53 |           40 |
 
 Table: Minimum sample sizes required in each population.
 
@@ -172,12 +168,12 @@ lowSamp <- sumData %>%
 
 These three filtering steps identified SNPs for exclusion as seen in the following table:
 
-| Reason For Removal  | # SNPs Marked For Removal       |
+| Reason For Removal  | SNPs Marked For Removal       |
 |:------------------- | -------------------------------:|
 | Fixed Alleles       | 30,336    |
 | Not Found in 1996   | 9,153     |
 | Identified in < 75% | 82,872      |
-| **Total**             | **99,241** |
+| **Total**           | **99,241** |
 
 Table: SNPs identified for removal
 
