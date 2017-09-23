@@ -74,8 +74,8 @@ sumData <- file.path("..", "data", "batch_3.sumstats.tsv.gz") %>%
   gzfile() %>%
   read_delim(delim = "\t", col_names = TRUE, skip = 2) %>%
   dplyr::select(-contains("Batch"), -contains("Pi"), -contains("Fis")) %>%
-  mutate(Chr = gsub("^gi\\|.+\\|ref\\|(.+)\\|$", "\\1", Chr),
-         Chr = as.character(ncbi2Ens[Chr, "Chr"]),
+  mutate(RefSeq = gsub("^gi\\|.+\\|ref\\|(.+)\\|$", "\\1", Chr),
+         Chr = as.character(ncbi2Ens[RefSeq, "Chr"]),
          snpID = paste(`Locus ID`, Col, sep="_"),
          Private = as.logical(Private)) %>%
   filter(Chr != "X",
@@ -100,8 +100,8 @@ The genomic locations of all SNPs were then prepared as a `GRanges` object.
 ```r
 snp2GR <- sumData %>%
   distinct(snpID, .keep_all = TRUE) %>%
-  makeGRangesFromDataFrame(seqinfo = seqinfo(ensGenes),
-                           keep.extra.columns=TRUE,
+  makeGRangesFromDataFrame(keep.extra.columns=TRUE,
+                           seqinfo = seqinfo(ensGenes),
                            seqnames.field = "Chr",
                            start.field = "BP",
                            end.field = "BP",
@@ -159,7 +159,7 @@ Table: Minimum sample sizes required in each population.
 ```r
 lowSamp <- sumData %>%
   left_join(dplyr::select(minSamp, -N)) %>%
-  mutate(keep = N > minN) %>%
+  mutate(keep = N >= minN) %>%
   group_by(snpID) %>%
   summarise(keep = sum(keep) == 2) %>%
   filter(!keep) %>%
@@ -172,8 +172,8 @@ These three filtering steps identified SNPs for exclusion as seen in the followi
 |:------------------- | -------------------------------:|
 | Fixed Alleles       | 30,336    |
 | Not Found in 1996   | 9,153     |
-| Identified in < 75% | 82,872      |
-| **Total**           | **99,241** |
+| Identified in < 75% | 77,280      |
+| **Total**           | **94,679** |
 
 Table: SNPs identified for removal
 
@@ -190,7 +190,7 @@ bestInTag <- sumData %>%
 ```
 
 - Where multiple SNPs were present in a tag with identical allele frequencies and sample sizes, one was selected at random
-- This marked 17,174 SNPs as containing duplicated information
+- This marked 18,509 SNPs as containing duplicated information
 
 
 ```r
@@ -206,7 +206,7 @@ bestDuplicate <- sumData %>%
 
 - Some SNPs were identified at the same genomic location in two loci and these were assumed to be due to differing cut sites, or tags aligned to complementary strands
 - If samples sizes were identical, otherwise the SNP with the largest total samples was chosen
-- This gave 28,922 candidate SNPs for downstream analysis.
+- This gave 31,386 candidate SNPs for downstream analysis.
 
 
 ## Selection of SNPs Near Genes
@@ -221,7 +221,7 @@ finalSNPs <- snp2GR %>%
   names()
 ```
 
-This gave the **final total of 18,728 SNPs** for downstream analysis.
+This gave the **final total of 20,336 SNPs** for downstream analysis.
 
 # Correction of P & Q Nucleotides
 
@@ -274,4 +274,5 @@ _bindrcpp(v.0.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _reshape2(v.1.4.2)_, _r
 
 **loaded via a namespace (and not attached):** 
 _Rcpp(v.0.12.12)_, _lubridate(v.1.6.0)_, _lattice(v.0.20-35)_, _Rsamtools(v.1.28.0)_, _Biostrings(v.2.44.2)_, _assertthat(v.0.2.0)_, _rprojroot(v.1.2)_, _digest(v.0.6.12)_, _psych(v.1.7.5)_, _R6(v.2.2.2)_, _cellranger(v.1.1.0)_, _plyr(v.1.8.4)_, _backports(v.1.1.0)_, _evaluate(v.0.10.1)_, _httr(v.1.3.1)_, _zlibbioc(v.1.22.0)_, _rlang(v.0.1.2)_, _lazyeval(v.0.2.0)_, _readxl(v.1.0.0)_, _Matrix(v.1.2-11)_, _rmarkdown(v.1.6)_, _BiocParallel(v.1.10.1)_, _stringr(v.1.2.0)_, _foreign(v.0.8-69)_, _RCurl(v.1.95-4.8)_, _munsell(v.0.4.3)_, _DelayedArray(v.0.2.7)_, _broom(v.0.4.2)_, _compiler(v.3.4.1)_, _modelr(v.0.1.1)_, _pkgconfig(v.2.0.1)_, _mnormt(v.1.5-5)_, _htmltools(v.0.3.6)_, _SummarizedExperiment(v.1.6.3)_, _GenomeInfoDbData(v.0.99.0)_, _matrixStats(v.0.52.2)_, _XML(v.3.98-1.9)_, _GenomicAlignments(v.1.12.2)_, _bitops(v.1.0-6)_, _grid(v.3.4.1)_, _nlme(v.3.1-131)_, _jsonlite(v.1.5)_, _gtable(v.0.2.0)_, _stringi(v.1.1.5)_, _XVector(v.0.16.0)_, _xml2(v.1.1.1)_, _tools(v.3.4.1)_, _forcats(v.0.2.0)_, _Biobase(v.2.36.2)_, _glue(v.1.1.1)_, _hms(v.0.3)_, _yaml(v.2.1.14)_, _colorspace(v.1.3-2)_, _rvest(v.0.3.2)_, _knitr(v.1.17)_, _bindr(v.0.1)_ and _haven(v.1.1.0)_
+
 
