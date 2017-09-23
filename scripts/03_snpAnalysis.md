@@ -1,6 +1,6 @@
 # SNP Analysis
 Steve Pederson  
-21 September 2017  
+`r format(Sys.Date(), "%b %d, %Y")  
 
 
 
@@ -102,8 +102,8 @@ alpha <- 0.05
 
 Under the full genotype model:
 
-- 0 genotypes were detected as being significantly associated with the two populations when controlling the FWER at $\alpha$ = 0.05
-- 0 genotypes were detected as being significantly associated with the two populations when controlling the FDR at $\alpha$ = 0.05
+- 0 genotypes were detected as being significantly associated with the two populations when controlling the FWER at &#945; = 0.05
+- 0 genotypes were detected as being significantly associated with the two populations when controlling the FDR at &#945; = 0.05
 - If controlling the FDR at 10% however, a total of 30 genotypes were considered as potentially associated with the population structure 
 - For the most highly ranked SNP (147965_18), the minor allele has been completely lost in the 2012 population
 
@@ -174,9 +174,9 @@ alleleResults <- allCounts %>%
 
 Under this model:
 
-- 2 SNP alleles were detected as being significantly associated with the two populations when controlling the FWER at $\alpha$ = 0.05.
+- 2 SNP alleles were detected as being significantly associated with the two populations when controlling the FWER at &#945; = 0.05.
 However, as these SNPs were within 21nt of each other, this may represent the same haplotype 
-- 16 SNP alleles were detected as being significantly associated with the two populations when controlling the FDR at $\alpha$ = 0.05
+- 16 SNP alleles were detected as being significantly associated with the two populations when controlling the FDR at &#945; = 0.05
 - extending the FDR to 10% yielded 32 SNP alleles
 
 
@@ -325,6 +325,27 @@ Table: Summary of changes in heterozygosity between the two timepoints. Changes 
 
 ![Estimated genotype frequencies for SNPs found to be significant under analysis by genotype only. In each case the `A` allele represents the major allele in the 1996 population.](03_snpAnalysis_files/figure-html/genotypeModelOnly-1.png)
 
+
+# Output
+
+Both sets of results were output as `genotypeResults.tsv` and `alleleResults.tsv`
+
+
+```r
+alleleResults %>% 
+  left_join(allData) %>% 
+  distinct(snpID, .keep_all = TRUE) %>% 
+  dplyr::select(snpID, Chr, BP, p, adjP, FDR) %>%
+  write_tsv(file.path("..", "results", "alleleResults.tsv"))
+```
+
+```r
+genotypeResults %>% 
+  left_join(allData) %>% 
+  distinct(snpID, .keep_all = TRUE) %>% 
+  dplyr::select(snpID, Chr, BP, p, adjP, FDR) %>%
+  write_tsv( file.path("..", "results", "genotypeResults.tsv"))
+```
 
 
 
