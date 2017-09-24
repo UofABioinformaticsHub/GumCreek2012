@@ -14,6 +14,7 @@ library(reshape2)
 library(readxl)
 library(magrittr)
 library(VennDiagram)
+library(qqman)
 ```
 
 
@@ -326,6 +327,9 @@ Under the full genotype model:
 
 Table: SNPs with raw p-values < 1e-04 when analysing by genotype. All SNPs were considered significant using an FDR < 0.1
 
+![Manhattan plot showing results for all SNPs on chromosomes 1:21 for analysis by genotype. The horizontal line indicates the cutoff for an FDR of 10%](03_snpAnalysis_files/figure-html/manhattanGenotype-1.png)
+
+
 ## Allele Frequency Model
 
 This model tests:  
@@ -378,6 +382,10 @@ However, as these SNPs were within 21nt of each other, this may represent the sa
 |       18 |  25,311,176 | 72766_17  | 2.523e-05 |   0.464 |   0.029 |
 
 Table: SNPs considered as significant when analysing by genotype using an FDR cutoff of 0.05
+
+
+![Manhattan plot showing results for all SNPs on chromosomes 1:21 when analysing by allele frequencies. The horizontal line indicates the cutoff for an FDR of 10%, with SNPs considered significant under the Bonferroni adjustnt shown in green.](03_snpAnalysis_files/figure-html/manhattanAllele-1.png)
+
 
 
 ## Comparison of Results
@@ -518,8 +526,8 @@ _LC_CTYPE=en_AU.UTF-8_, _LC_NUMERIC=C_, _LC_TIME=en_AU.UTF-8_, _LC_COLLATE=en_AU
 _grid_, _parallel_, _stats_, _graphics_, _grDevices_, _utils_, _datasets_, _methods_ and _base_
 
 **other attached packages:** 
-_bindrcpp(v.0.2)_, _VennDiagram(v.1.6.17)_, _futile.logger(v.1.4.3)_, _magrittr(v.1.5)_, _readxl(v.1.0.0)_, _reshape2(v.1.4.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _dplyr(v.0.7.2)_, _purrr(v.0.2.3)_, _readr(v.1.1.1)_, _tidyr(v.0.7.1)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.1.1)_
+_bindrcpp(v.0.2)_, _qqman(v.0.1.4)_, _VennDiagram(v.1.6.17)_, _futile.logger(v.1.4.3)_, _magrittr(v.1.5)_, _readxl(v.1.0.0)_, _reshape2(v.1.4.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _dplyr(v.0.7.3)_, _purrr(v.0.2.3)_, _readr(v.1.1.1)_, _tidyr(v.0.7.1)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.1.1)_
 
 **loaded via a namespace (and not attached):** 
-_haven(v.1.1.0)_, _lattice(v.0.20-35)_, _colorspace(v.1.3-2)_, _htmltools(v.0.3.6)_, _yaml(v.2.1.14)_, _rlang(v.0.1.2)_, _foreign(v.0.8-69)_, _glue(v.1.1.1)_, _modelr(v.0.1.1)_, _lambda.r(v.1.1.9)_, _bindr(v.0.1)_, _plyr(v.1.8.4)_, _stringr(v.1.2.0)_, _munsell(v.0.4.3)_, _gtable(v.0.2.0)_, _cellranger(v.1.1.0)_, _rvest(v.0.3.2)_, _psych(v.1.7.5)_, _evaluate(v.0.10.1)_, _labeling(v.0.3)_, _knitr(v.1.17)_, _forcats(v.0.2.0)_, _highr(v.0.6)_, _broom(v.0.4.2)_, _Rcpp(v.0.12.12)_, _backports(v.1.1.0)_, _jsonlite(v.1.5)_, _mnormt(v.1.5-5)_, _hms(v.0.3)_, _digest(v.0.6.12)_, _stringi(v.1.1.5)_, _rprojroot(v.1.2)_, _tools(v.3.4.1)_, _lazyeval(v.0.2.0)_, _futile.options(v.1.0.0)_, _pkgconfig(v.2.0.1)_, _xml2(v.1.1.1)_, _lubridate(v.1.6.0)_, _assertthat(v.0.2.0)_, _rmarkdown(v.1.6)_, _httr(v.1.3.1)_, _R6(v.2.2.2)_, _nlme(v.3.1-131)_ and _compiler(v.3.4.1)_
+_haven(v.1.1.0)_, _lattice(v.0.20-35)_, _colorspace(v.1.3-2)_, _htmltools(v.0.3.6)_, _yaml(v.2.1.14)_, _rlang(v.0.1.2)_, _foreign(v.0.8-69)_, _glue(v.1.1.1)_, _calibrate(v.1.7.2)_, _modelr(v.0.1.1)_, _lambda.r(v.1.2)_, _bindr(v.0.1)_, _plyr(v.1.8.4)_, _stringr(v.1.2.0)_, _munsell(v.0.4.3)_, _gtable(v.0.2.0)_, _cellranger(v.1.1.0)_, _rvest(v.0.3.2)_, _psych(v.1.7.8)_, _evaluate(v.0.10.1)_, _labeling(v.0.3)_, _knitr(v.1.17)_, _forcats(v.0.2.0)_, _highr(v.0.6)_, _broom(v.0.4.2)_, _Rcpp(v.0.12.12)_, _backports(v.1.1.0)_, _jsonlite(v.1.5)_, _mnormt(v.1.5-5)_, _hms(v.0.3)_, _digest(v.0.6.12)_, _stringi(v.1.1.5)_, _rprojroot(v.1.2)_, _tools(v.3.4.1)_, _lazyeval(v.0.2.0)_, _futile.options(v.1.0.0)_, _pkgconfig(v.2.0.1)_, _xml2(v.1.1.1)_, _lubridate(v.1.6.0)_, _assertthat(v.0.2.0)_, _rmarkdown(v.1.6)_, _httr(v.1.3.1)_, _R6(v.2.2.2)_, _nlme(v.3.1-131)_ and _compiler(v.3.4.1)_
 
