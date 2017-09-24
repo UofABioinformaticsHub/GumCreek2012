@@ -165,7 +165,7 @@ ALLGO2ENS <- file.path("..", "data", "ALLGO2ENS.tsv.gz") %>%
   read_tsv()
 ```
 
-- This object contained all 1,289,778 gene to GO mappings for this build of Ensembl.
+- This object contained all 1,289,778 possible gene to GO mappings for this build of Ensembl.
 - After building the database once, this object then became the reference object for all downstream analysis.
 
 ### Defining GO Term Levels
@@ -248,61 +248,36 @@ snpInExons <- resultsGR %>%
   findOverlaps(ensExons)
 ```
 
-A total of `length(snpInGenes)` significant SNPs were found to be within the start and end points of genes.
+A total of 27 significant SNPs were found to be within the start and end points of genes.
 5 of these were within the coding regions of these genes.
 
 
---------------------------------------------------------------------
-Gene ID              Name             Chr            BP snpID       
--------------------- --------- ---------- ------------- ------------
-ENSOCUG00000017054   TEX33              4    84,940,214 167107_60   
-
-ENSOCUG00000017054   TEX33              4    84,940,235 167108_14   
-
-ENSOCUG00000005399   EPO                6    27,103,573 157156_58*  
-
-ENSOCUG00000005399   EPO                6    27,103,576 157157_45*  
-
-ENSOCUG00000001407   MAGI2              7    38,250,131 151791_54   
-
-ENSOCUG00000011060   MYO1B              7   131,862,327 147965_18   
-
-ENSOCUG00000005605   LDLRAD4            9    48,543,229 134595_50   
-
-ENSOCUG00000000804   SCRN1             10    14,373,457 127156_20   
-
-ENSOCUG00000000804   SCRN1             10    14,373,501 127157_45   
-
-ENSOCUG00000007988   MUC4              14    92,793,012 101831_18*  
-
-ENSOCUG00000007461   NAV1              16    69,850,541 87407_11    
-
-ENSOCUG00000007461   NAV1              16    69,850,609 208806_6    
-
-ENSOCUG00000015494   NIN               17    69,838,525 80772_39    
-
-ENSOCUG00000011533   RHOBTB1           18    25,311,139 72765_47*   
-
-ENSOCUG00000008478   STXBP4            19    32,825,478 68946_78    
-
-ENSOCUG00000009435   XKR5        GL018713       365,938 50206_34    
-
-ENSOCUG00000000596   PLA2G16     GL018717       314,346 48659_40    
-
-ENSOCUG00000017106   KAZN        GL018739        75,851 41475_63    
-
-ENSOCUG00000017031   USP46       GL018754     1,365,061 37345_16    
-
-ENSOCUG00000010092   CPNE9       GL018802       439,482 204810_79   
-
-ENSOCUG00000005387   XRCC1       GL018881        22,826 21889_62    
-
-ENSOCUG00000005387   XRCC1       GL018881        24,194 21896_47    
-
-ENSOCUG00000005387   XRCC1       GL018881        24,230 21896_11    
-
-ENSOCUG00000027400   PLAUR       GL018881        88,327 233206_29   
---------------------------------------------------------------------
+| Gene ID            | Name    |      Chr |          BP | snpID      |
+|:-------------------|:--------|---------:|------------:|:-----------|
+| ENSOCUG00000017054 | TEX33   |        4 |  84,940,214 | 167107_60  |
+| ENSOCUG00000017054 | TEX33   |        4 |  84,940,235 | 167108_14  |
+| ENSOCUG00000005399 | EPO     |        6 |  27,103,573 | 157156_58* |
+| ENSOCUG00000005399 | EPO     |        6 |  27,103,576 | 157157_45* |
+| ENSOCUG00000001407 | MAGI2   |        7 |  38,250,131 | 151791_54  |
+| ENSOCUG00000011060 | MYO1B   |        7 | 131,862,327 | 147965_18  |
+| ENSOCUG00000005605 | LDLRAD4 |        9 |  48,543,229 | 134595_50  |
+| ENSOCUG00000000804 | SCRN1   |       10 |  14,373,457 | 127156_20  |
+| ENSOCUG00000000804 | SCRN1   |       10 |  14,373,501 | 127157_45  |
+| ENSOCUG00000007988 | MUC4    |       14 |  92,793,012 | 101831_18* |
+| ENSOCUG00000007461 | NAV1    |       16 |  69,850,541 | 87407_11   |
+| ENSOCUG00000007461 | NAV1    |       16 |  69,850,609 | 208806_6   |
+| ENSOCUG00000015494 | NIN     |       17 |  69,838,525 | 80772_39   |
+| ENSOCUG00000011533 | RHOBTB1 |       18 |  25,311,139 | 72765_47*  |
+| ENSOCUG00000008478 | STXBP4  |       19 |  32,825,478 | 68946_78   |
+| ENSOCUG00000009435 | XKR5    | GL018713 |     365,938 | 50206_34   |
+| ENSOCUG00000000596 | PLA2G16 | GL018717 |     314,346 | 48659_40   |
+| ENSOCUG00000017106 | KAZN    | GL018739 |      75,851 | 41475_63   |
+| ENSOCUG00000017031 | USP46   | GL018754 |   1,365,061 | 37345_16   |
+| ENSOCUG00000010092 | CPNE9   | GL018802 |     439,482 | 204810_79  |
+| ENSOCUG00000005387 | XRCC1   | GL018881 |      22,826 | 21889_62   |
+| ENSOCUG00000005387 | XRCC1   | GL018881 |      24,194 | 21896_47   |
+| ENSOCUG00000005387 | XRCC1   | GL018881 |      24,230 | 21896_11   |
+| ENSOCUG00000027400 | PLAUR   | GL018881 |      88,327 | 233206_29  |
 
 Table: Genes with significant SNPs located between their start and end positions. SNPs within exons are indicated with anadditional asterisk.
 
