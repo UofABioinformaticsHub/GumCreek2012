@@ -223,8 +223,8 @@ oraRegions <- sampleMetadata %>%
 ### Testing for Structure in 2012
 
 This model tests:  
-H~0~: No association between genotypes and collection region  
-H~A~: An association exists between genotypes and collection region
+H<sub>0</sub>: No association between genotypes and collection region  
+H<sub>A</sub>: An association exists between genotypes and collection region
 
 
 ```r
@@ -243,7 +243,7 @@ regionResults <- minorAlleleCounts %>%
 ```
 
 A total of 1943 SNPs were detected as showing a significant association between genotype and the collection region.
-Under H~0~, the number expected using &#945; = 0.05 would be 1016, and as this number was nearly double that expected, this was taken as evidence of this being a genuine point of concerning this data.
+Under H<sub>0</sub>, the number expected using &#945; = 0.05 would be 1016, and as this number was nearly double that expected, this was taken as evidence of this being a genuine point of concerning this data.
 
 Type II errors were of principle concern in this instance, and as such every SNP with p < 0.05 in the above test was excluded from downstream analysis.
 
@@ -273,8 +273,8 @@ reducedPCA <- dataForPCA %>%
 ## Genotype Frequency Model
 
 This model tests:  
-H~0~: No association between genotypes and populations  
-H~A~: An association exists between genotypes and populations
+H<sub>0</sub>: No association between genotypes and populations  
+H<sub>A</sub>: An association exists between genotypes and populations
 
 
 ```r
@@ -329,8 +329,8 @@ Table: SNPs with raw p-values < 1e-04 when analysing by genotype. All SNPs were 
 ## Allele Frequency Model
 
 This model tests:  
-H~0~: No association between allele frequencies and populations  
-H~A~: An association exists between allele frequencies  and populations
+H<sub>0</sub>: No association between allele frequencies and populations  
+H<sub>A</sub>: An association exists between allele frequencies  and populations
 
 
 ```r
