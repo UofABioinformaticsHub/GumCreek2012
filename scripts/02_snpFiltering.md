@@ -324,6 +324,7 @@ gzOut <- file.path("..", "data", "minorAlleleCounts.tsv.gz") %>%
   gzfile("w")
 minorAlleleCounts %>%
   as.data.frame() %>%
+  rownames_to_column("sampleID") %>%
   write_tsv(gzOut)
 close(gzOut)
 ```
