@@ -32,6 +32,14 @@ evalLongChunks <- FALSE
 This analysis takes the SNPs found to be associated with the two populations and determines which genes are nearby.
 An analysis of the GO terms associated with these SNPS is also undertaken.
 
+## Outline of analysis
+
+This file covers three main areas
+
+1. Preparation of the complete mappings from Ensembl gene IDs to GO terms
+2. Finding SNPs within and near genes
+3. Identification of enriched GO terms using Fisher's Exact Test on the sets of genes within 2kb and 40kb of the significant SNPs
+
 # Data Setup
 
 ## Genes
