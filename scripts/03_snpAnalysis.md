@@ -1,6 +1,6 @@
 # SNP Analysis
 Steve Pederson  
-`r format(Sys.Date(), "%b %d, %Y")`  
+24th September 2017  
 
 
 

@@ -1,6 +1,6 @@
 # Analysis Of Genes Associated With Significant SNPs
 Steve Pederson  
-`r format(Sys.Date(), "%b %d, %Y")`  
+27th September 2017  
 
 
 
@@ -15,6 +15,8 @@ library(parallel)
 library(magrittr)
 library(pander)
 library(scales)
+library(reshape2)
+library(stringr)
 ```
 
 
@@ -163,10 +165,16 @@ close(gzOut)
 ALLGO2ENS <- file.path("..", "data", "ALLGO2ENS.tsv.gz") %>%
   gzfile() %>%
   read_tsv()
+singleGeneGO <- ALLGO2ENS %>% 
+  group_by(go_id) %>% 
+  tally %>% 
+  filter(n == 1) %>%
+  extract2("go_id")
 ```
 
 - This object contained all 1,289,778 possible gene to GO mappings for this build of Ensembl.
 - After building the database once, this object then became the reference object for all downstream analysis.
+- A subset of 4243 GO terms which mapped to only a single gene were also noted for exclusion from testing, as no significant results would be possible from these terms.
 
 ### Defining GO Term Levels
 
@@ -279,7 +287,9 @@ A total of 27 significant SNPs were found to be within the start and end points 
 | ENSOCUG00000005387 | XRCC1   | GL018881 |      24,230 | 21896_11   |
 | ENSOCUG00000027400 | PLAUR   | GL018881 |      88,327 | 233206_29  |
 
-Table: Genes with significant SNPs located between their start and end positions. SNPs within exons are indicated with anadditional asterisk.
+Table: Genes with significant SNPs located between their start and end positions. SNPs within exons are indicated with an additional asterisk.
+
+- It was also noted that proteins produced from `MYO1B` and `USP46`are known interacting proteins in human biology
 
 ## Genes within 20kb
 
@@ -300,8 +310,144 @@ sigGenesIn20kb <- subsetByOverlaps(
     )
 ```
 
-As a an intial conservative approach, the set of genes within 20kb of a SNP was investigated.
+As a an initial conservative approach, the set of genes within 20kb of a SNP was investigated.
 This produced a list of 7407 genes in total, of which 46 overlapped SNPs of interest.
 
-The set of GO terms assigned to these genes in `biomaRt` were extended back to the ontology roots.
 
+
+```r
+go2Test20kb <- ALLGO2ENS %>%
+  filter(ensembl_gene_id %in% sigGenesIn20kb$gene_id,
+         !go_id %in% unlist(thirdLevelGO)) %>%
+  extract2("go_id") %>%
+  unique %>%
+  setdiff(singleGeneGO)
+```
+
+A set of 639 GO terms mapping to more than one gene, and with at least 4 steps back to the ontology roots, were assigned to the genes within 20kb of the 44 candidate SNPs.
+These were then tested for enrichment using the set of genes within 20kb of the remaining 18349 SNPs
+
+Due to the closely related nature of some SNPs in this dataset the possibility of two SNPs being within 20kb of the same genes was extremely high, and this approach would ensure that each gene only appears once despite the possibility of mapping to multiple SNPs within the dataset.
+
+Fisher's Exact Test was then used to test for enrichment by counting the genes mapped to each GO term within the set of significant, and non-significant SNPs, and comparing to the genes not mapped to each GO term in both sets of SNPs.
+All p values were then adjusted using Benjamini-Hochberg's FDR.
+
+
+
+```r
+nSigGenes <- length(sigGenesIn20kb)
+nNotSigGenes <- length(allGenesIn20kb) - nSigGenes
+goResults20kb <- go2Test20kb %>%
+  lapply(function(x){
+    # Form a matrix of the counts
+    mat <- filter(ALLGO2ENS, go_id == x) %>%
+      mutate(Sig = ensembl_gene_id %in% sigGenesIn20kb$gene_id) %>%
+      acast(Sig~., fun.aggregate = length, value.var = "Sig")
+    # Ensure it is a matrix, then set row/colnames
+    if (length(mat) == 1) mat <- c(0, mat)
+    mat <- cbind(mat, withoutGO = c(nNotSigGenes, nSigGenes) - mat)
+    colnames(mat)[1] <- "withGO"
+    rownames(mat) <- c("notNearSNP", "nearSNP")
+    # Fisher's exact test
+    ft <- fisher.test(mat)
+    data_frame(go_id = x,
+               expected = nSigGenes * mat["notNearSNP", "withGO"] / nNotSigGenes,
+               observed = mat["nearSNP", "withGO"],
+               p = ft$p.value)
+  }) %>%
+  bind_rows() %>%
+  mutate(FDR = p.adjust(p, "fdr")) %>%
+  arrange(p)
+```
+
+A total of 4 GO terms were considered as enriched using the criteria of an FDR-adjusted p-value < 0.05 and with observed numbers greater than that predicted by the ratio in the non-significant SNP genes.
+
+
+| GO ID      | Term                                   | Observed | Expected |         p |      FDR |
+|:-----------|:---------------------------------------|---------:|---------:|----------:|---------:|
+| GO:0004792 | thiosulfate sulfurtransferase activity |        2 | 0.006249 | 0.0001128 | 0.006371 |
+| GO:0071294 | cellular response to zinc ion          |        2 |  0.01875 | 0.0003729 |  0.01402 |
+| GO:0016783 | sulfurtransferase activity             |        2 |  0.04374 |  0.001321 |  0.03518 |
+| GO:0010043 | response to zinc ion                   |        2 |  0.04374 |  0.001321 |  0.03518 |
+
+Table: Gene Ontologies considered as enriched amongst the set of 46 genes within 20kb of the significant SNPs. The number of genes matching eachterm is given in the 'Observed' column.
+
+## Genes within 40kb
+
+
+
+
+```r
+allGenesIn40kb <- subsetByOverlaps(
+  ensGenes, 
+  resultsGR %>%
+    resize(width = 80001,fix = "center") %>%
+    trim()
+    )
+sigGenesIn40kb <- subsetByOverlaps(
+  ensGenes, 
+  resultsGR %>%
+    subset(Sig)%>%
+    resize(width = 80001,fix = "center") %>%
+    trim()
+    )
+```
+
+The same approach was then repeated for genes within 40kb of each SNP.
+This produced a list of 9688 genes in total, of which 71 overlapped SNPs of interest.
+
+
+
+```r
+go2Test40kb <- ALLGO2ENS %>%
+  filter(ensembl_gene_id %in% sigGenesIn40kb$gene_id,
+         !go_id %in% unlist(thirdLevelGO)) %>%
+  extract2("go_id") %>%
+  unique %>%
+  setdiff(singleGeneGO)
+```
+
+A set of 867 GO terms mapping to more than one gene, and with at least 4 steps back to the ontology roots were assigned to the genes within 40kb of the 44 candidate SNPs.
+These were then tested for enrichment using the set of genes within 40kb of the remaining 18349 SNPs
+
+
+
+```r
+nSigGenes <- length(sigGenesIn40kb)
+nNotSigGenes <- length(allGenesIn40kb) - nSigGenes
+goResults40kb <- go2Test40kb %>%
+  lapply(function(x){
+    # Form a matrix of the counts
+    mat <- filter(ALLGO2ENS, go_id == x) %>%
+      mutate(Sig = ensembl_gene_id %in% sigGenesIn40kb$gene_id) %>%
+      acast(Sig~., fun.aggregate = length, value.var = "Sig")
+    # Ensure it is a matrix, then set row/colnames
+    if (length(mat) == 1) mat <- c(0, mat)
+    mat <- cbind(mat, withoutGO = c(nNotSigGenes, nSigGenes) - mat)
+    colnames(mat)[1] <- "withGO"
+    rownames(mat) <- c("notNearSNP", "nearSNP")
+    # Fisher's exact test
+    ft <- fisher.test(mat)
+    data_frame(go_id = x,
+               expected = nSigGenes * mat["notNearSNP", "withGO"] / nNotSigGenes,
+               observed = mat["nearSNP", "withGO"],
+               p = ft$p.value)
+  }) %>%
+  bind_rows() %>%
+  mutate(FDR = p.adjust(p, "fdr")) %>%
+  arrange(p)
+```
+
+A total of 3 GO terms were considered as enriched using the criteria of an FDR-adjusted p-value < 0.05 and with observed numbers greater than that predicted by the ratio in the non-significant SNP genes.
+
+
+| GO ID      | Term                                   | Observed | Expected |         p |      FDR |
+|:-----------|:---------------------------------------|---------:|---------:|----------:|---------:|
+| GO:0071294 | cellular response to zinc ion          |        3 |  0.01477 | 3.733e-06 | 0.003236 |
+| GO:0010043 | response to zinc ion                   |        3 |   0.0443 |  3.07e-05 | 0.008873 |
+| GO:0004792 | thiosulfate sulfurtransferase activity |        2 | 0.007383 | 0.0001581 |  0.03427 |
+
+Table: Gene Ontologies considered as enriched amongst the set of 71 genes within 40kb of the significant SNPs. The number of genes matching eachterm is given in the 'Observed' column.
+
+Similar sets of terms were detected at both 20kb and 40kb.
+The appearance of terms connected to the Zinc ion may be of note as the link between zinc and clearance of HCV has recently been established, via the IFN-&#947; pathway
