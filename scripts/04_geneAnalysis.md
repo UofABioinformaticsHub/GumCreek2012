@@ -371,12 +371,12 @@ goResults20kb <- go2Test20kb %>%
 A total of 4 GO terms were considered as enriched using the criteria of an FDR-adjusted p-value < 0.05 and with observed numbers greater than that predicted by the ratio in the non-significant SNP genes.
 
 
-| GO ID      | Term                                   | Observed | Expected |         p |      FDR |
-|:-----------|:---------------------------------------|---------:|---------:|----------:|---------:|
-| GO:0004792 | thiosulfate sulfurtransferase activity |        2 | 0.006249 | 0.0001128 | 0.006371 |
-| GO:0071294 | cellular response to zinc ion          |        2 |  0.01875 | 0.0003729 |  0.01402 |
-| GO:0016783 | sulfurtransferase activity             |        2 |  0.04374 |  0.001321 |  0.03518 |
-| GO:0010043 | response to zinc ion                   |        2 |  0.04374 |  0.001321 |  0.03518 |
+| GO ID      | Term                                   | Ont | Observed | Expected |         p |      FDR |
+|:-----------|:---------------------------------------|:----|---------:|---------:|----------:|---------:|
+| GO:0004792 | thiosulfate sulfurtransferase activity | MF  |        2 | 0.006249 | 0.0001128 | 0.006371 |
+| GO:0071294 | cellular response to zinc ion          | BP  |        2 |  0.01875 | 0.0003729 |  0.01402 |
+| GO:0016783 | sulfurtransferase activity             | MF  |        2 |  0.04374 |  0.001321 |  0.03518 |
+| GO:0010043 | response to zinc ion                   | BP  |        2 |  0.04374 |  0.001321 |  0.03518 |
 
 Table: Gene Ontologies considered as enriched amongst the set of 46 genes within 20kb of the significant SNPs. The number of genes matching eachterm is given in the 'Observed' column.
 
@@ -449,11 +449,11 @@ goResults40kb <- go2Test40kb %>%
 A total of 3 GO terms were considered as enriched using the criteria of an FDR-adjusted p-value < 0.05 and with observed numbers greater than that predicted by the ratio in the non-significant SNP genes.
 
 
-| GO ID      | Term                                   | Observed | Expected |         p |      FDR |
-|:-----------|:---------------------------------------|---------:|---------:|----------:|---------:|
-| GO:0071294 | cellular response to zinc ion          |        3 |  0.01477 | 3.733e-06 | 0.003236 |
-| GO:0010043 | response to zinc ion                   |        3 |   0.0443 |  3.07e-05 | 0.008873 |
-| GO:0004792 | thiosulfate sulfurtransferase activity |        2 | 0.007383 | 0.0001581 |  0.03427 |
+| GO ID      | Term                                   | Ont | Observed | Expected |         p |      FDR |
+|:-----------|:---------------------------------------|:----|---------:|---------:|----------:|---------:|
+| GO:0071294 | cellular response to zinc ion          | BP  |        3 |  0.01477 | 3.733e-06 | 0.003236 |
+| GO:0010043 | response to zinc ion                   | BP  |        3 |   0.0443 |  3.07e-05 | 0.008873 |
+| GO:0004792 | thiosulfate sulfurtransferase activity | MF  |        2 | 0.007383 | 0.0001581 |  0.03427 |
 
 Table: Gene Ontologies considered as enriched amongst the set of 71 genes within 40kb of the significant SNPs. The number of genes matching eachterm is given in the 'Observed' column.
 
@@ -508,7 +508,7 @@ list(
 pander(sessionInfo()) 
 ```
 
-**R version 3.4.1 (2017-06-30)**
+**R version 3.4.2 (2017-09-28)**
 
 **Platform:** x86_64-pc-linux-gnu (64-bit) 
 
@@ -519,7 +519,7 @@ _LC_CTYPE=en_AU.UTF-8_, _LC_NUMERIC=C_, _LC_TIME=en_AU.UTF-8_, _LC_COLLATE=en_AU
 _parallel_, _stats4_, _stats_, _graphics_, _grDevices_, _utils_, _datasets_, _methods_ and _base_
 
 **other attached packages:** 
-_bindrcpp(v.0.2)_, _stringr(v.1.2.0)_, _reshape2(v.1.4.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _magrittr(v.1.5)_, _GO.db(v.3.4.1)_, _AnnotationDbi(v.1.38.2)_, _Biobase(v.2.36.2)_, _biomaRt(v.2.32.1)_, _rtracklayer(v.1.36.4)_, _GenomicRanges(v.1.28.5)_, _GenomeInfoDb(v.1.12.2)_, _IRanges(v.2.10.3)_, _S4Vectors(v.0.14.4)_, _BiocGenerics(v.0.22.0)_, _dplyr(v.0.7.3)_, _purrr(v.0.2.3)_, _readr(v.1.1.1)_, _tidyr(v.0.7.1)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.1.1)_
+_bindrcpp(v.0.2)_, _stringr(v.1.2.0)_, _reshape2(v.1.4.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _magrittr(v.1.5)_, _GO.db(v.3.4.1)_, _AnnotationDbi(v.1.38.2)_, _Biobase(v.2.36.2)_, _biomaRt(v.2.32.1)_, _rtracklayer(v.1.36.6)_, _GenomicRanges(v.1.28.6)_, _GenomeInfoDb(v.1.12.3)_, _IRanges(v.2.10.5)_, _S4Vectors(v.0.14.7)_, _BiocGenerics(v.0.22.1)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.1.1)_
 
 **loaded via a namespace (and not attached):** 
-_httr(v.1.3.1)_, _bit64(v.0.9-7)_, _jsonlite(v.1.5)_, _modelr(v.0.1.1)_, _assertthat(v.0.2.0)_, _blob(v.1.1.0)_, _GenomeInfoDbData(v.0.99.0)_, _cellranger(v.1.1.0)_, _Rsamtools(v.1.28.0)_, _yaml(v.2.1.14)_, _RSQLite(v.2.0)_, _backports(v.1.1.0)_, _lattice(v.0.20-35)_, _glue(v.1.1.1)_, _digest(v.0.6.12)_, _XVector(v.0.16.0)_, _rvest(v.0.3.2)_, _colorspace(v.1.3-2)_, _htmltools(v.0.3.6)_, _Matrix(v.1.2-11)_, _plyr(v.1.8.4)_, _psych(v.1.7.8)_, _XML(v.3.98-1.9)_, _pkgconfig(v.2.0.1)_, _broom(v.0.4.2)_, _haven(v.1.1.0)_, _zlibbioc(v.1.22.0)_, _BiocParallel(v.1.10.1)_, _SummarizedExperiment(v.1.6.4)_, _lazyeval(v.0.2.0)_, _mnormt(v.1.5-5)_, _readxl(v.1.0.0)_, _memoise(v.1.1.0)_, _evaluate(v.0.10.1)_, _nlme(v.3.1-131)_, _forcats(v.0.2.0)_, _xml2(v.1.1.1)_, _foreign(v.0.8-69)_, _tools(v.3.4.1)_, _hms(v.0.3)_, _matrixStats(v.0.52.2)_, _munsell(v.0.4.3)_, _DelayedArray(v.0.2.7)_, _Biostrings(v.2.44.2)_, _compiler(v.3.4.1)_, _rlang(v.0.1.2)_, _grid(v.3.4.1)_, _RCurl(v.1.95-4.8)_, _bitops(v.1.0-6)_, _rmarkdown(v.1.6)_, _gtable(v.0.2.0)_, _DBI(v.0.7)_, _R6(v.2.2.2)_, _GenomicAlignments(v.1.12.2)_, _lubridate(v.1.6.0)_, _knitr(v.1.17)_, _bit(v.1.1-12)_, _bindr(v.0.1)_, _rprojroot(v.1.2)_, _stringi(v.1.1.5)_ and _Rcpp(v.0.12.12)_
+_httr(v.1.3.1)_, _bit64(v.0.9-7)_, _jsonlite(v.1.5)_, _modelr(v.0.1.1)_, _assertthat(v.0.2.0)_, _blob(v.1.1.0)_, _GenomeInfoDbData(v.0.99.0)_, _cellranger(v.1.1.0)_, _Rsamtools(v.1.28.0)_, _yaml(v.2.1.14)_, _RSQLite(v.2.0)_, _backports(v.1.1.1)_, _lattice(v.0.20-35)_, _glue(v.1.1.1)_, _digest(v.0.6.12)_, _XVector(v.0.16.0)_, _rvest(v.0.3.2)_, _colorspace(v.1.3-2)_, _htmltools(v.0.3.6)_, _Matrix(v.1.2-11)_, _plyr(v.1.8.4)_, _psych(v.1.7.8)_, _XML(v.3.98-1.9)_, _pkgconfig(v.2.0.1)_, _broom(v.0.4.2)_, _haven(v.1.1.0)_, _zlibbioc(v.1.22.0)_, _BiocParallel(v.1.10.1)_, _SummarizedExperiment(v.1.6.5)_, _lazyeval(v.0.2.0)_, _mnormt(v.1.5-5)_, _readxl(v.1.0.0)_, _memoise(v.1.1.0)_, _evaluate(v.0.10.1)_, _nlme(v.3.1-131)_, _forcats(v.0.2.0)_, _xml2(v.1.1.1)_, _foreign(v.0.8-69)_, _tools(v.3.4.2)_, _hms(v.0.3)_, _matrixStats(v.0.52.2)_, _munsell(v.0.4.3)_, _DelayedArray(v.0.2.7)_, _Biostrings(v.2.44.2)_, _compiler(v.3.4.2)_, _rlang(v.0.1.2)_, _grid(v.3.4.2)_, _RCurl(v.1.95-4.8)_, _bitops(v.1.0-6)_, _rmarkdown(v.1.6)_, _gtable(v.0.2.0)_, _DBI(v.0.7)_, _R6(v.2.2.2)_, _GenomicAlignments(v.1.12.2)_, _lubridate(v.1.6.0)_, _knitr(v.1.17)_, _bit(v.1.1-12)_, _bindr(v.0.1)_, _rprojroot(v.1.2)_, _stringi(v.1.1.5)_ and _Rcpp(v.0.12.13)_
