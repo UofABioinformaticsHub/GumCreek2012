@@ -132,7 +132,7 @@ fixedSNPs <- sumData %>%
   extract2("snpID")
 ```
 
-- SNPs not detected in the 1996 population were identified as this were likely due to migration, not selection
+- SNPs not detected in the 1996 population were identified as these were likely due to migration or some other factor, not selection
 
 
 ```r
@@ -202,7 +202,8 @@ bestDuplicate <- sumData %>%
   group_by(Chr, BP, snpID) %>%
   summarise(N = sum(N)) %>%
   ungroup() %>%
-  arrange(Chr, BP, N) %>%
+  mutate(`Locus ID` = gsub("([0-9]+)_[0-9]","\\1", snpID)) %>%
+  arrange(Chr, BP, N, `Locus ID`) %>%
   distinct(Chr, BP, .keep_all = TRUE) %>%
   extract2("snpID")
 ```
