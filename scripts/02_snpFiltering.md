@@ -344,7 +344,40 @@ minorAlleleCounts %>%
 close(gzOut)
 ```
 
-This file was then exported as `minorAlleleCounts.tsv.gz`
+This file was then exported as `minorAlleleCounts.tsv.gz`.
+An additional genepop file was created for use with Bayescan and for estimation of effecive population sizes.
+
+
+```r
+customGenepopFile <- file.path("..", "data", "filteredSNPs.genepop.gz") 
+# The header
+write_lines(x = "Created by custom script; Genepop version 4.1.3; Nov 05, 2017", 
+           path = gzfile(customGenepopFile))
+# Allele names
+colnames(alleles) %>% 
+  paste(collapse = ",") %>%
+  write_lines(gzfile(customGenepopFile), append = TRUE)
+# The first population
+write_lines("pop", gzfile(customGenepopFile), append = TRUE)
+# Allele data for each gc sample
+grep("gc", rownames(alleles), value = TRUE) %>%
+  lapply(function(x){
+    alls <- replace(alleles[x,], is.na(alleles[x,]), "0000") %>%
+      paste(collapse = "\t")
+    paste(x, alls, sep = ",") %>%
+      write_lines(gzfile(customGenepopFile), append = TRUE)
+  })
+# The next population
+write_lines("pop", gzfile(customGenepopFile), append = TRUE)
+# Allele data for each ora sample
+grep("ora", rownames(alleles), value = TRUE) %>%
+  lapply(function(x){
+    alls <- replace(alleles[x,], is.na(alleles[x,]), "0000") %>%
+      paste(collapse = "\t")
+    paste(x, alls, sep = ",") %>%
+      write_lines(gzfile(customGenepopFile), append = TRUE)
+  })
+```
 
 
 **R version 3.4.2 (2017-09-28)**
