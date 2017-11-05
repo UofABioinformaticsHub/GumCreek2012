@@ -378,7 +378,7 @@ A total of 4 GO terms were considered as enriched using the criteria of an FDR-a
 | GO:0016783 | sulfurtransferase activity             | MF  |        2 |  0.04374 |  0.001321 |  0.03518 |
 | GO:0010043 | response to zinc ion                   | BP  |        2 |  0.04374 |  0.001321 |  0.03518 |
 
-Table: Gene Ontologies considered as enriched amongst the set of 46 genes within 20kb of the significant SNPs. The number of genes matching eachterm is given in the 'Observed' column.
+Table: Gene Ontologies considered as enriched amongst the set of 46 genes within 20kb of the significant SNPs. The number of genes matching each term is given in the 'Observed' column.
 
 ## Genes within 40kb
 
@@ -455,7 +455,7 @@ A total of 3 GO terms were considered as enriched using the criteria of an FDR-a
 | GO:0010043 | response to zinc ion                   | BP  |        3 |   0.0443 |  3.07e-05 | 0.008873 |
 | GO:0004792 | thiosulfate sulfurtransferase activity | MF  |        2 | 0.007383 | 0.0001581 |  0.03427 |
 
-Table: Gene Ontologies considered as enriched amongst the set of 71 genes within 40kb of the significant SNPs. The number of genes matching eachterm is given in the 'Observed' column.
+Table: Gene Ontologies considered as enriched amongst the set of 71 genes within 40kb of the significant SNPs. The number of genes matching each term is given in the 'Observed' column.
 
 Similar sets of terms were detected at both 20kb and 40kb.
 The appearance of terms connected to the Zinc ion may be of note as the link between zinc and clearance of HCV has recently been established, via the IFN-&#947; pathway
