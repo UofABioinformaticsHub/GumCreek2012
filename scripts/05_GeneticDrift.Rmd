@@ -17,25 +17,19 @@ knitr::opts_chunk$set(echo = TRUE,
                       message = FALSE, warning = FALSE)
 ```
 
+
 ```{r}
 library(pander)
 library(magrittr)
 library(dplyr)
 library(scales)
+library(ggplot2)
+library(parallel)
 ```
 
 ```{r}
 logit <- binomial()$linkfun
 inv.logit <- binomial()$linkinv
-```
-
-
-```{r simParam, cache=TRUE}
-nGen <- 16
-nSim <- 5000
-litterSize <- 30
-migRate <- 0.15
-alpha <- 0.001
 ```
 
 # Introduction
@@ -45,14 +39,22 @@ This analysis takes the filtered SNPs from under analysis and simulates genetic 
 ## Outline of Drift Simulation
 
 This analysis uses a custom set of scripts collected as an R package and available from https://github.com/steveped/driftSim.
-This is able to be installed using `devtools::install_github("steveped/driftSim").
+This is able to be installed as below.
 
-The drift model starts with an allele frequency and follows the process:
+```{r install}
+devtools::install_github("steveped/driftSim")
+library(driftSim)
+```
 
 ### Initialisation
 
-```{r}
-Ne <- c(`1996` = 268.9, `2012` = 127.6)
+```{r simParam, cache=TRUE}
+nGen <- 16
+nSim <- 5000
+litterSize <- 30
+migRate <- 0.15
+alpha <- 0.001
+Ne <- c(`1996` = 222, `2012` = 116)
 pSurv <- 0.1
 f0 <- seq(0.5, 0.95, by = 0.05)
 nPops <- c(4, 8)
@@ -60,27 +62,82 @@ sigma <- c(0.5, 0.8)
 ```
 
 
+As decided the population parameters were defined as:
+
+| Parameter   | Value          | Comment                                                     |
+|:----------- |:-------------- |:----------------------------------------------------------- |
+| *Ne*~1996~  | `r Ne["1996"]` | Effective Population Size in 1996                           |
+| *Ne*~2012~  | `r Ne["2012"]` | Effective Population Size in 2012                           |
+| *p*         | `r pSurv`      | Probability of survival after initial outbreak              |
+| *g*         | `r nGen`       | The number of generations between 1996 and 2012             |
+| *n*         | `r nPops`      | The number of neighbouring populations                      |
+| *l*         | `r litterSize` | The annual litter size                                      |
+| *r*         | `r migRate`    | The migration rate                                          |
+| *f~0~*      | 0.5 to 0.95    | The starting allele frequency, increased in steps of 0.05  |
+| *&sigma;*   | `r sigma`      | The initial variability in *f~0~* in neighbouring populations |
+
+No selective advantage was specified for any allele.
+
+The simulation parameters were defined as:
+
+| Parameter   | Value     | Comment                                                     |
+|:----------- |:--------- |:----------------------------------------------------------- |
+| *n*~sim~    | `r nSim`  | The number of simulations at each starting frequency *f~0~* |
+| *&alpha;*   | `r alpha` | The significance level for plotting confidence bands        |
+
+
+To summarise the above:
+
 1. The effective population size was defined as Ne = `r Ne[[1]]` representing the initial population in 1996. 
-2. A starting major allele frequency was selected as one of f0 = `r pander(f0)`. Each rabbit was simulated as heterozygous or homozygous for either the major or minor allele using the initial starting frquency
+2. A starting major allele frequency was selected as one of *f~0~* = `r pander(f0)`. Each rabbit was simulated as heterozygous or homozygous for either the major or minor allele using the initial starting frquency
 3. An initial survival rate was defined as p = `r pSurv`, with this functioning as an initial bottleneck, and rabbits were assigned as survivors or fatalities with this probability.
-4. These populationwas consideredas the *central population*, and this initialisation process was then repeated for either `r nPops[1]` or `r nPops[2]` neighbouring populations of the same size. However, variability was added to the initial allele frequencies on the logit scale using values of &#963; = `r pander(sigma)`. The same bottleneck procedure as applied to each of these populations.
+4. This population was considered as the *central population*, and this initialisation process was then repeated for either `r nPops[1]` or `r nPops[2]` neighbouring populations of the same size. However, variability was added to the initial allele frequencies on the logit scale using values of *&sigma;* = `r pander(sigma)`. The same bottleneck procedure was applied to each of these populations.
 
 
-```{r}
+# Placing Variability in Context
+
+
+```{r nSamp}
 nSamp <- 1e06
 x_0 <- runif(nSamp, 0.5, 0.95)
-corSigma <- c(0.5, 0.8, 1)
-y_0 <- corSigma %>%
+y_0 <- sigma %>%
   lapply(function(sigma){
     inv.logit(rnorm(nSamp, logit(x_0), sigma))
   })
 ```
 
-In order to express these values for &#963; in terms of correlations, `r comma(nSamp)` random values were simulated for a starting frequency ($f_0$) anywhere between 0.5 and 0.95.
-`r comma(nSamp)` _neighbouring population starting values_ were randomly sampled around this using the values of $\sigma =$ `r pander(corSigma)`, with the random sampling taking place on the logit scale.
+
+In order to express these values for *&sigma;* in terms of correlations, `r comma(nSamp)` random values were simulated for a starting frequency (*f~0~*) anywhere between 0.5 and 0.95.
+`r comma(nSamp)` _neighbouring population starting values_ were randomly sampled around this using the values of *&sigma;* = `r pander(sigma)`, with the random sampling taking place on the logit scale.
+
+
+```{r plotAddVars, echo=FALSE, fig.height=5, fig.cap="The effect of adding variability to derive initial frequencies in neighbouring populations. Half of the simulated initial values will be contained by the box for each starting frequency, with the remaining half being outside of these bounds."}
+expand.grid(f0 = f0, sigma = sigma) %>%
+  apply(MARGIN = 1,
+        FUN = function(x){
+          data_frame(f0 = x[1], sigma = x[2],
+                     samples = rnorm(1000,
+                                     logit(x[1]),
+                                     sd = x[2])) %>%
+            mutate(samples = inv.logit(samples))}) %>%
+  bind_rows() %>%
+  mutate(sigma = paste("sigma ==", sigma)) %>%
+  ggplot(aes(x = f0, y = samples)) +
+  geom_boxplot(aes(group= as.factor(f0))) +
+  facet_wrap(~sigma, scales = "free",
+             labeller = "label_parsed") +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.2)) +
+  theme_bw() +
+  labs(x = "Initial Value in Main Population",
+       y = "Simulated Initial Values In Other Populations")
+```
+
+
+In order to express these values for *&sigma;* in terms of correlations, `r comma(nSamp)` random values were simulated for a starting frequency (*f~0~*) anywhere between 0.5 and 0.95.
+`r comma(nSamp)` _neighbouring population starting values_ were randomly sampled around this using the values of *&sigma;* = `r pander(sigma)`, with the random sampling taking place on the logit scale.
 
 ```{r, echo=FALSE, results='asis'}
-data_frame(Sigma = corSigma,
+data_frame(Sigma = sigma,
            Correlation = vapply(y_0, cor, y = x_0, numeric(1))) %>%
   pander(digits = 2,
          style ="rmarkdown",
@@ -88,4 +145,56 @@ data_frame(Sigma = corSigma,
 ```
 
 
+# Run Simulations
+
+```{r allParam}
+allParam <- expand.grid(f0 = f0,
+                        mig = migRate,
+                        n = nPops,
+                        sd = sigma) %>%
+  mutate(N0 = round(Ne["1996"], 0),
+         Nt = round(Ne["2012"], 0),
+         t = nGen,
+         surv = pSurv,
+         litter = litterSize) %>%
+  split(f = factor(1:nrow(.)))
+```
+
+```{r allSim, cache=TRUE, dependson='simParam'}
+allSim <- allParam %>%
+  mclapply(function(x){
+    x <- as.list(x)
+    replicate(nSim, do.call(simDrift, args = x)$ft)
+  },
+  mc.cores = 20)
+```
+
+```{r, echo=FALSE, cache=TRUE, dependson='allSim'}
+write_rds(allSim, paste0("../allSim", yyyymmdd, ".rds"))
+```
+
+```{r allSim99}
+allSim99 <- allSim %>%
+  lapply(quantile, probs = c(alpha/2, 1-alpha/2)) %>%
+  lapply(as.list) %>%
+  lapply(as.data.frame) %>%
+  bind_rows() %>%
+  set_names(c("lwr", "upr"))
+```
+
+
+```{r driftIntervals}
+driftIntervals <- allParam %>%
+  bind_rows() %>%
+  dplyr::select(f0, n, sd) %>%
+  as_data_frame() %>%
+  cbind(allSim99)
+```
+
+
+Save here for now to run over the weekend
+
+```{r}
+save.image("../05_GeneticDrift.RData")
+```
 
