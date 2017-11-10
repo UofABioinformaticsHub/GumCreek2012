@@ -1,0 +1,376 @@
+---
+title: "SNP Filtering"
+author: "Steve Pederson"
+date: "21 September 2017"
+output: 
+  html_document: 
+    keep_md: yes
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(magrittr)
+library(rtracklayer)
+library(GenomicRanges)
+library(parallel)
+library(reshape2)
+library(pander)
+library(scales)
+library(stringr)
+nCores <- min(12, detectCores() - 1)
+```
+
+
+# Introduction
+
+This file takes the raw output from `Stacks` and filters the complete set of SNPs to arrive at the final list of SNPs used for downstream analysis.
+The two populations are referred to below as Population `1` (*Gum Creek*, 1996) and Population `2` (*Oraparinna*, 2012).
+
+## Outline of selection process for SNPs to be analysed
+
+The filtering steps involved are:
+
+1. Removal of SNPs located on sex chromosomes
+2. Removal of SNPs within the *PstI* restriction site errors
+3. Removal of *fixed* alleles
+4. Removal of SNPs not observed in 1996 as these would be likely due to migration not selection
+5. Removal of SNPs identified in <75% of both populations
+6. Removal of SNPs within the same GBS tag, with identical allele frequencies
+7. Removal of SNPs called by `Stacks` to be in separate tags, but which share identical genomic co-ordinates
+8. Selection of SNPs within 40kb of a gene
+
+`Stacks` identifies `P` (major) and `Q` (minor) alleles within each population, and an additional proessing step was included to ensure the `P` allele in both populations was the SNP determined to be the `P` allele in the 1996 population.
+
+# Data Setup
+
+#### Genome Setup
+
+Whilst aligned to the RefSeq/NCBI genome build, for compatability with Ensembl gene models, a mapping object was generated from the [RefSeq Assembly Report](ftp://ftp.ncbi.nih.gov/genomes/refseq/vertebrate_mammalian/Oryctolagus_cuniculus/latest_assembly_versions/GCF_000003625.3_OryCun2.0/GCF_000003625.3_OryCun2.0_assembly_report.txt)
+
+```{r}
+ncbiReport <- file.path("..", "data", "GCF_000003625.3_OryCun2.0_assembly_report.txt") %>%
+  read_delim(delim = "\t", col_names = FALSE, na = "na", comment = "#") %>%
+  set_colnames(c("Sequence-Name", "Sequence-Role", "Assigned-Molecule", "Assigned-Molecule-Location/Type", "GenBank-Accn", "Relationship", "RefSeq-Accn", "Assembly-Unit", "Sequence-Length", "UCSC-style-name")) %>%
+  filter(!is.na(`RefSeq-Accn`))
+ensUsesGB <- grepl("scaffold",ncbiReport$`Sequence-Role`)
+ncbiReport$Ensembl <- ncbiReport$`Sequence-Name`
+ncbiReport$Ensembl[ensUsesGB] <- gsub("\\.[0-9]$", "", ncbiReport$`GenBank-Accn`[ensUsesGB])
+ncbi2Ens <- with(ncbiReport, data.frame(Chr = Ensembl, 
+                                        Length = `Sequence-Length`,
+                                        row.names = `RefSeq-Accn`))
+```
+
+Gene information was obtained from Ensembl Build 84 and loaded 
+
+```{r}
+ensGff <- file.path("..", "data", "Oryctolagus_cuniculus.OryCun2.0.84.gff3.gz")
+ensGenes <- import.gff3(ensGff, feature.type = "gene", sequenceRegionsAsSeqinfo = TRUE) 
+```
+
+#### Loading SNP Data
+
+```{r sumData}
+sumData <- file.path("..", "data", "batch_3.sumstats.tsv.gz") %>%
+  gzfile() %>%
+  read_delim(delim = "\t", col_names = TRUE, skip = 3) %>%
+  dplyr::select(-contains("Batch"), -contains("Pi"), -contains("Fis")) %>%
+  mutate(RefSeq = gsub("^gi\\|.+\\|ref\\|(.+)\\|$", "\\1", Chr),
+         Chr = as.character(ncbi2Ens[RefSeq, "Chr"]),
+         snpID = paste(`Locus ID`, Col, sep="_"),
+         Private = as.logical(Private)) %>%
+  filter(`Pop ID` != 3,
+         Chr != "X",
+         Col > 4) %>%
+  dplyr::select(Chr, BP, `Locus ID`, Col, snpID, 
+                `Pop ID`, contains("Nuc"),  N, P, 
+                contains("Obs"), contains("Exp"), Private)
+```
+
+The `stacks` summary output was loaded immediately removing:
+
+- SNPs on Chromosome X
+- SNPs within the restriction site
+- Data from the Turretfield outgroup, which was not required for this stage of the analysis
+
+This object contained information for `r comma(length(unique(sumData$snpID)))` SNPs across `r comma(length(unique(sumData[["Locus ID"]])))` GBS tags.
+
+#### Conversion of SNPs to GRanges
+
+The genomic locations of all SNPs were then prepared as a `GRanges` object.
+
+```{r}
+snp2GR <- sumData %>%
+  distinct(snpID, .keep_all = TRUE) %>%
+  makeGRangesFromDataFrame(keep.extra.columns=TRUE,
+                           seqinfo = seqinfo(ensGenes),
+                           seqnames.field = "Chr",
+                           start.field = "BP",
+                           end.field = "BP",
+                           ignore.strand = TRUE) %>%
+  extract(, c("Locus ID", "snpID")) %>%
+  set_names(.$snpID) %>%
+  sort
+```
+
+
+# SNP Filtering And Selection
+
+## Uninformative SNPs
+
+- Fixed SNPs were defined as `P > 0.95` in both populations or `P = 0.5` in both populations
+
+```{r}
+fixedSNPs <- sumData %>%
+  group_by(snpID) %>%
+  summarise(minP = min(P),
+            maxP = max(P),
+            both50 = all(minP == 0.5, maxP == 0.5)) %>%
+  filter(minP > 0.95 | both50) %>%
+  extract2("snpID")
+```
+
+- SNPs not detected in the 1996 population were identified as these were likely due to migration or some other factor, not selection
+
+```{r}
+uniq2Ora <- filter(sumData, `Pop ID` == 1, P == 1)$snpID
+```
+
+- SNPs were also excluded if not identified in > 75% of both populations
+
+```{r}
+minSamp <- sumData %>% 
+  group_by(`Pop ID`) %>% 
+  summarise(N = max(N)) %>%
+  mutate(minN = ceiling(0.75*N)) %>%
+  dplyr::select(`Pop ID`, N, minN)
+```
+
+```{r, echo=FALSE}
+minSamp %>%
+  dplyr::select(`Pop ID`, N, `Min Required` = minN) %>%
+  pander(justify = "lrr",
+         style = "rmarkdown",
+         caption = "Minimum sample sizes required in each population.")
+```
+
+```{r lowSamp}
+lowSamp <- sumData %>%
+  left_join(dplyr::select(minSamp, -N)) %>%
+  mutate(keep = N >= minN) %>%
+  group_by(snpID) %>%
+  summarise(keep = sum(keep) == 2) %>%
+  filter(!keep) %>%
+  extract2("snpID")
+```
+
+These three filtering steps identified SNPs for exclusion as seen in the following table:
+
+| Reason For Removal  | SNPs Marked For Removal       |
+|:------------------- | -------------------------------:|
+| Fixed Alleles       | `r comma(length(fixedSNPs))`    |
+| Not Found in 1996   | `r comma(length(uniq2Ora))`     |
+| Identified in < 75% | `r comma(length(lowSamp))`      |
+| **Total**           | **`r comma(length(unique(c(fixedSNPs, uniq2Ora, lowSamp))))`** |
+
+Table: SNPs identified for removal
+
+## Duplicate SNPs
+
+```{r rmRedundant}
+bestInTag <- sumData %>% 
+  filter(!snpID %in% c(fixedSNPs, uniq2Ora, lowSamp)) %>%
+  dplyr::select(`Locus ID`, Col, snpID, `Pop ID`, N) %>%
+  dcast(`Locus ID` + Col + snpID ~ `Pop ID`) %>% 
+  distinct(`Locus ID`, `1`, `2`, .keep_all = TRUE) %>%
+  extract2("snpID")
+```
+
+- Where multiple SNPs were present in a tag with identical allele frequencies and sample sizes, one was selected at random
+- This marked `r comma(length(setdiff(setdiff(names(snp2GR), c(fixedSNPs, uniq2Ora, lowSamp)), bestInTag)))` SNPs as containing duplicated information
+
+```{r besDuplicate}
+bestDuplicate <- sumData %>% 
+  filter(snpID %in% bestInTag) %>%
+  group_by(Chr, BP, snpID) %>%
+  summarise(N = sum(N)) %>%
+  ungroup() %>%
+  mutate(`Locus ID` = gsub("([0-9]+)_[0-9]","\\1", snpID)) %>%
+  arrange(Chr, BP, N, `Locus ID`) %>%
+  distinct(Chr, BP, .keep_all = TRUE) %>%
+  extract2("snpID")
+```
+
+- Some SNPs were identified at the same genomic location in two loci and these were assumed to be due to differing cut sites, or tags aligned to complementary strands
+- If samples sizes were identical, otherwise the SNP with the largest total samples was chosen
+- This gave `r comma(length(bestDuplicate))` candidate SNPs for downstream analysis.
+
+
+## Selection of SNPs Near Genes
+
+```{r finalSNPa}
+finalSNPs <- snp2GR %>%
+  subset(snpID %in% bestDuplicate) %>%
+  resize(80001, fix = "center") %>%
+  trim() %>%
+  subsetByOverlaps(ensGenes) %>%
+  names()
+```
+
+```{r nGenes}
+nGenes <- snp2GR %>%
+  extract(finalSNPs) %>%
+  resize(80001, fix = "center") %>%
+  trim() %>%
+  findOverlaps(ensGenes) %>%
+  subjectHits() %>%
+  unique() %>%
+  length()
+```
+
+
+This gave the **final total of `r comma(length(finalSNPs))` SNPs** for downstream analysis, covering a total of `r comma(nGenes)` genes.
+
+
+# Correction of P & Q Nucleotides
+
+P and Q alleles are defined separately for each population, and need to be redefined such that these alleles are common across populations.
+Define each SNP such that the P (i.e. most common) allele in Population 1 is considered as the reference allele.
+
+```{r reDefPQ}
+sumData %<>%
+  filter(snpID %in% finalSNPs) %>%
+  split(f = .$snpID) %>%
+  mclapply(function(x){
+    if (length(unique(x$`P Nuc`)) == 2){ # If there are 2 P alleles
+      x[2, c("P Nuc", "Q Nuc")] <- x[2, c("Q Nuc", "P Nuc")]
+      x$P[2] <- 1 - x$P[2]
+    }
+    x
+  }, mc.cores = nCores) %>%
+  bind_rows
+```
+
+
+```{r outFile}
+gzOut <- file.path("..", "data", "filteredSNPs.tsv.gz") %>%
+  gzfile("w")
+sumData %>%
+  dplyr::select(-Private) %>%
+  write_tsv(gzOut)
+close(gzOut)
+```
+
+This final object was exported as the object `filteredSNPs.tsv.gz`
+
+
+# Editing of genpop data
+
+The `genpop` file as output by `stacks` was loaded into `R` and converted to genotypes manually.
+
+
+- First extract all the setup information
+
+```{r}
+gpFile <- file.path("..", "data", "batch_3.genepop.gz") %>% gzfile()
+gpData <- readLines(gpFile)
+close(gpFile)
+popStart <- grep("^pop", gpData) + 1
+popEnd <- c(popStart[-1] - 2, length(gpData))
+nPops <- length(popStart)
+sampleRows <- seq_along(popStart) %>%
+  sapply(function(x){seq(popStart[x], popEnd[x])}) %>%
+  unlist()
+sampleIDs <- gsub("(gc|ora|TF|tf|Y|pt)([0-9ABC]+),.+", "\\1\\2", gpData[sampleRows])
+snpIDs <- gpData[2] %>% str_split(",") %>% extract2(1)
+```
+
+- Now get the alleles using the existing allele encoding
+- Then restrict to the SNPs being analysed
+
+```{r}
+alleles <- gsub("(gc|ora|TF|tf|Y|pt)[0-9ABC]+,\\t", "", gpData[sampleRows]) %>%
+  str_split_fixed("\t", n = length(snpIDs)) %>%
+  replace(. == "0000", NA) %>%
+  set_colnames(snpIDs) %>%
+  set_rownames(sampleIDs) %>%
+  extract(,finalSNPs)
+```
+
+- Convert to minor allele counts
+
+```{r}
+minorAlleleCounts <- alleles %>%
+  apply(MARGIN = 2, function(x){
+    allNums <- sort(unique(x[!is.na(x)])) # The existing allele combinations
+    allIDs <- unique(c(substr(allNums, 1, 2),
+                       substr(allNums, 3, 4))) # The existing allele numbers
+    # Create all possible genotypes
+    gTypes <- c(paste0(allIDs[1], allIDs[1]),
+                  paste0(allIDs[1], allIDs[2]),
+                  paste0(allIDs[2], allIDs[2]))
+    # Find the maximum allele based on homozygotes across all populations
+    homs <- vapply(gTypes[c(1, 3)],function(y){sum(grepl(y, x), na.rm = TRUE)}, integer(1))
+    P <- which.max(homs)
+    # Reverse the genotypes & use as factor levels
+    if (P == 2) gTypes <- rev(gTypes)
+    as.integer(factor(x, levels = gTypes)) - 1
+  }) %>%
+  set_rownames(sampleIDs)
+```
+
+```{r}
+gzOut <- file.path("..", "data", "minorAlleleCounts.tsv.gz") %>%
+  gzfile("w")
+minorAlleleCounts %>%
+  as.data.frame() %>%
+  rownames_to_column("sampleID") %>%
+  write_tsv(gzOut)
+close(gzOut)
+```
+
+This file was then exported as `minorAlleleCounts.tsv.gz`.
+An additional genepop file was created for use with Bayescan and for estimation of effecive population sizes.
+
+```{r, results='hide'}
+customGenepopFile <- file.path("..", "data", "filteredSNPs.genepop.gz") 
+# The header
+write_lines(x = "Created by custom script; Genepop version 4.1.3; Nov 05, 2017", 
+           path = gzfile(customGenepopFile))
+# Allele names
+colnames(alleles) %>% 
+  paste(collapse = ",") %>%
+  write_lines(gzfile(customGenepopFile), append = TRUE)
+# The first population
+write_lines("pop", gzfile(customGenepopFile), append = TRUE)
+# Allele data for each gc sample
+grep("gc", rownames(alleles), value = TRUE) %>%
+  lapply(function(x){
+    alls <- replace(alleles[x,], is.na(alleles[x,]), "0000") %>%
+      paste(collapse = "\t")
+    paste(x, alls, sep = ",") %>%
+      write_lines(gzfile(customGenepopFile), append = TRUE)
+  })
+# The next population
+write_lines("pop", gzfile(customGenepopFile), append = TRUE)
+# Allele data for each ora sample
+grep("ora", rownames(alleles), value = TRUE) %>%
+  lapply(function(x){
+    alls <- replace(alleles[x,], is.na(alleles[x,]), "0000") %>%
+      paste(collapse = "\t")
+    paste(x, alls, sep = ",") %>%
+      write_lines(gzfile(customGenepopFile), append = TRUE)
+  })
+```
+
+
+```{r, echo=FALSE, results='asis'}
+pander(sessionInfo()) 
+```
+
+

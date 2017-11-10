@@ -1,0 +1,91 @@
+---
+title: "Simulation of Genetic Drift"
+author: "Steve Pederson"
+date: "28 September 2017"
+output: 
+  html_document: 
+    fig_caption: yes
+    fig_height: 8
+    fig_width: 10
+    keep_md: yes
+    toc: yes
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(pander)
+library(magrittr)
+library(dplyr)
+library(scales)
+```
+
+```{r}
+logit <- binomial()$linkfun
+inv.logit <- binomial()$linkinv
+```
+
+
+```{r simParam, cache=TRUE}
+nGen <- 16
+nSim <- 5000
+litterSize <- 30
+migRate <- 0.15
+alpha <- 0.001
+```
+
+# Introduction
+
+This analysis takes the filtered SNPs from under analysis and simulates genetic drift under no selective pressure, in order to compare detected changes in allele frequencies to the range of values predicted by the drift model.
+
+## Outline of Drift Simulation
+
+This analysis uses a custom set of scripts collected as an R package and available from https://github.com/steveped/driftSim.
+This is able to be installed using `devtools::install_github("steveped/driftSim").
+
+The drift model starts with an allele frequency and follows the process:
+
+### Initialisation
+
+```{r}
+Ne <- c(`1996` = 268.9, `2012` = 127.6)
+pSurv <- 0.1
+f0 <- seq(0.5, 0.95, by = 0.05)
+nPops <- c(4, 8)
+sigma <- c(0.5, 0.8)
+```
+
+
+1. The effective population size was defined as Ne = `r Ne[[1]]` representing the initial population in 1996. 
+2. A starting major allele frequency was selected as one of f0 = `r pander(f0)`. Each rabbit was simulated as heterozygous or homozygous for either the major or minor allele using the initial starting frquency
+3. An initial survival rate was defined as p = `r pSurv`, with this functioning as an initial bottleneck, and rabbits were assigned as survivors or fatalities with this probability.
+4. These populationwas consideredas the *central population*, and this initialisation process was then repeated for either `r nPops[1]` or `r nPops[2]` neighbouring populations of the same size. However, variability was added to the initial allele frequencies on the logit scale using values of &#963; = `r pander(sigma)`. The same bottleneck procedure as applied to each of these populations.
+
+
+```{r}
+nSamp <- 1e06
+x_0 <- runif(nSamp, 0.5, 0.95)
+corSigma <- c(0.5, 0.8, 1)
+y_0 <- corSigma %>%
+  lapply(function(sigma){
+    inv.logit(rnorm(nSamp, logit(x_0), sigma))
+  })
+```
+
+In order to express these values for &#963; in terms of correlations, `r comma(nSamp)` random values were simulated for a starting frequency ($f_0$) anywhere between 0.5 and 0.95.
+`r comma(nSamp)` _neighbouring population starting values_ were randomly sampled around this using the values of $\sigma =$ `r pander(corSigma)`, with the random sampling taking place on the logit scale.
+
+```{r, echo=FALSE, results='asis'}
+data_frame(Sigma = corSigma,
+           Correlation = vapply(y_0, cor, y = x_0, numeric(1))) %>%
+  pander(digits = 2,
+         style ="rmarkdown",
+         caption = paste("Approximate correlations between starting allele frequencies in two populations, for three chosen values of $\\sigma$"))
+```
+
+
+
