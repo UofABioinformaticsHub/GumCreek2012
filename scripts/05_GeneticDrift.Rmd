@@ -25,6 +25,7 @@ library(dplyr)
 library(scales)
 library(ggplot2)
 library(parallel)
+library(readr)
 ```
 
 ```{r}
@@ -169,8 +170,8 @@ allSim <- allParam %>%
   mc.cores = 20)
 ```
 
-```{r, echo=FALSE, cache=TRUE, dependson='allSim'}
-write_rds(allSim, paste0("../allSim", yyyymmdd, ".rds"))
+```{r, echo=FALSE}
+write_rds(allSim, "../allSim_Nov2017.rds")
 ```
 
 ```{r allSim99}
