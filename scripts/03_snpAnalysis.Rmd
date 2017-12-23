@@ -276,6 +276,7 @@ Type II errors were of principle concern in this instance, and as such every SNP
 
 ```{r}
 regionSNPs <- names(which(regionResults < 0.05))
+regionSNPs %>% writeLines(file.path("..", "results", "regionSNPs.txt"))
 ```
 
 Under this additional filtering step, **the original set of `r length(regionResults)` SNPs will be reduced to `r length(regionResults) - length(regionSNPs)`** for testing by genotype and allele frequency.

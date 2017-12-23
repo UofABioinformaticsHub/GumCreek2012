@@ -106,7 +106,7 @@ mcols(allSnpsGR) <- DataFrame(snpID = allSnpsGR$snpID)
 ```
 
 
-## FLK
+# FLK Analysis
 
 The script `FLK.R` was obtained from the [QGSP]( https://qgsp.jouy.inra.fr/archives/FLK/FLK.R) and loaded into `R`
 
@@ -116,7 +116,7 @@ source("FLK.R")
 ```
 
 
-## Neutral Loci
+## Define Neutral Loci
 
 
 ```r
@@ -190,9 +190,11 @@ neutMatrix <- neutData %>%
   t()
 ```
 
-This gave a final list of 1171 neutral SNPs for estimation of Reynolds Distance
 
-## Reynolds Distance 
+
+## Co-ancestry Matrix (F_ij)
+
+The above gave a final list of 1171 neutral SNPs for estimation of Reynolds Distance as the first step towards calculating the co-ancestry matrix $\mathcal{F}_{ij}$.
 
 
 ```r
@@ -212,7 +214,6 @@ reynDist <- reynolds(neutMatrix)
 
 Table: Reynolds Distance as calculated using the neutral loci as defined above.
 
-## Co-ancestry Matrix (F_ij)
 
 
 ```r
@@ -225,13 +226,16 @@ F_ij <- Fij(neutMatrix, "Turretfield (2010)", reynDist)
 
 
 ```r
+regionSnps <- file.path("..", "results", "regionSNPs.txt") %>% readLines()
 testData <-  file.path("..", "data", "filteredSNPs.tsv.gz") %>%
   gzfile() %>%
-  read_delim(delim = "\t") 
+  read_delim(delim = "\t") %>%
+  filter(!snpID %in% regionSnps)
 ```
 
-The set of 2.0336\times 10^{4} SNPs previously obtained for testing after all filtering steps were then tested using the FLK model.
-P-values obtained under FLK were adjusted using Bonferroni's method to obtain a set of high-confidence SNPs, then using Benjamini-Hochberg's FDR to provide a larger set for pathway testing.
+The set of 1.8393\times 10^{4} SNPs previously obtained for testing after all filtering steps were then tested using the FLK model.
+SNPs previously identified as showing a regional effect in the 2012 population were also removed from FLK analysis.
+P-values obtained under FLK were adjusted using Bonferroni's method to obtain a set of high-confidence SNPs, then using Benjamini-Hochberg's FDR to provide a larger set for testing of GO enrichment.
 
 
 ```r
@@ -248,19 +252,29 @@ flkResults <- testData %>%
   arrange(F.LK.p.val)
 ```
 
-A total of 6 SNPs retained significance after the Bonferroni adjustment with a total of 62 being considered in the larger set of SNPs with an FDR of 0.05.
-
 
 ```r
-testData %>%
+flkResults <- testData %>%
   dplyr::select(snpID, Chr, BP, `Pop ID`, `P Nuc`, `Q Nuc`, P) %>%
-  mutate(`Pop ID` = c("Gum Creek (1996)", "Oraparinna (2012)")[`Pop ID`],
-         SNP = paste(`P Nuc`, `Q Nuc`, sep = "/")) %>%
+  mutate(`Pop ID` = c("Gum Creek (1996)", "Oraparinna (2012)")[`Pop ID`]) %>%
+  split(f = .$snpID) %>%
+  lapply(mutate, `Q Nuc` = `Q Nuc`[1]) %>%
+  bind_rows() %>%
+  mutate(SNP = paste(`P Nuc`, `Q Nuc`, sep = "/")) %>%
   dcast(snpID + Chr + BP + SNP  ~ `Pop ID`, value.var = "P") %>%
   right_join(flkResults) %>%
   as_data_frame() %>%
-  arrange(F.LK.p.val) %>%
+  arrange(F.LK.p.val)
+```
+
+
+A total of 6 SNPs retained significance after the Bonferroni adjustment with a total of 48 being considered in the larger set of SNPs with an FDR of 0.05.
+
+
+```r
+flkResults %>%
   write_tsv( file.path("..", "results", "flkResults.tsv"))
 ```
 
+![Comparison of allele frequencies in both populations for all tested SNPs. SNPs considered as significant under FLK are highlighted in red.](S1_FLK_files/figure-html/unnamed-chunk-21-1.png)
 
