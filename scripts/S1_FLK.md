@@ -1,6 +1,16 @@
-# Supplementary: FLK Analysis
-Steve Pederson  
-29 September 2017  
+---
+title: "Supplementary: FLK Analysis"
+author: "Steve Pederson"
+date: "29 September 2017"
+output: 
+  html_document: 
+    fig_caption: yes
+    fig_height: 8
+    fig_width: 10
+    keep_md: yes
+    toc: yes
+    toc_depth: 2
+---
 
 
 
@@ -26,8 +36,10 @@ nCores <- min(12, detectCores() - 1)
 
 This supplementary analysis uses the FLK model as outlined in [Bonhomme et al, Detecting Selection in Population Trees: The Lewontin and Krakauer Test Extended](https://dx.doi.org/10.1534%2Fgenetics.110.117275).
 This test is robust to genetic drift, and is able to detect signatures of selection.
-However as this is a linear evolution dataset within one population as opposed to a series of approximately parallel selection event occurring within a series of populations, the assumptions of the FLK model may be less than satisfied.
+However as this is a linear evolution dataset within one population as opposed to a series of approximately parallel selection events occurring within a series of populations, the assumptions of the FLK model may be less than satisfied.
 Hence this is presented as supplementary information.
+
+A third population was included as an outlier group, representing a population separated by a large geographic distance. 35 samples were taken from [Schwensow et al]( http://onlinelibrary.wiley.com/doi/10.1111/mec.14228/full).
 
 # Setup
 
@@ -132,7 +144,7 @@ neutData <- allData %>%
 ```
 
 
-As a broad definition of neutral loci, the set of SNPs not within 100kb of a known gene were selected.
+As a broad definition of neutral loci, the set of SNPs > 100kb from any known gene were selected.
 After removal of duplicate loci, this gave a set of 26,097 SNPs.
 
 Neutral SNPs were again checked to ensure that the `P` allele was the same as used in the 1996 population.
@@ -170,9 +182,9 @@ neutMatrix <- neutData %>%
   left_join(N) %>%
   group_by(snpID) %>%
   filter(all(N > minN)) %>%
-  mutate(`Pop ID` = c("Gum Creek", "Oraparinna", "Turretfield")[`Pop ID`]) %>%
+  mutate(`Pop ID` = c("Gum Creek (1996)", "Oraparinna (2012)", "Turretfield (2010)")[`Pop ID`]) %>%
   dcast(snpID~`Pop ID`, value.var = "P") %>%
-  filter(`Gum Creek` != 1) %>%
+  filter(`Gum Creek (1996)` != 1) %>%
   column_to_rownames("snpID") %>%
   as.matrix() %>%
   t()
@@ -180,7 +192,7 @@ neutMatrix <- neutData %>%
 
 This gave a final list of 1171 neutral SNPs for estimation of Reynolds Distance
 
-## Reynolds Distance and F_ij
+## Reynolds Distance 
 
 
 ```r
@@ -188,25 +200,67 @@ reynDist <- reynolds(neutMatrix)
 ```
 
 
---------------------------------------------------------
-     &nbsp;        Gum Creek   Oraparinna   Turretfield 
------------------ ----------- ------------ -------------
-  **Gum Creek**        0        0.01062       0.08543   
+------------------------------------------------------------------------------------
+&nbsp;                     Gum Creek (1996)   Oraparinna (2012)   Turretfield (2010)
+------------------------ ------------------ ------------------- --------------------
+**Gum Creek (1996)**                      0             0.01062              0.08543
 
- **Oraparinna**     0.01062        0          0.09209   
+**Oraparinna (2012)**               0.01062                   0              0.09209
 
- **Turretfield**    0.08543     0.09209          0      
---------------------------------------------------------
+**Turretfield (2010)**              0.08543             0.09209                    0
+------------------------------------------------------------------------------------
 
 Table: Reynolds Distance as calculated using the neutral loci as defined above.
 
+## Co-ancestry Matrix (F_ij)
+
 
 ```r
-F_ij <- Fij(neutMatrix, "Turretfield", reynDist)
+F_ij <- Fij(neutMatrix, "Turretfield (2010)", reynDist)
 ```
 
 ![Neighbout-joining Tree for all 3 populations.](S1_FLK_files/figure-html/njTree-1.png)
 
-## Co-ancestry Matrix
-
 ## FLK Results
+
+
+```r
+testData <-  file.path("..", "data", "filteredSNPs.tsv.gz") %>%
+  gzfile() %>%
+  read_delim(delim = "\t") 
+```
+
+The set of 2.0336\times 10^{4} SNPs previously obtained for testing after all filtering steps were then tested using the FLK model.
+P-values obtained under FLK were adjusted using Bonferroni's method to obtain a set of high-confidence SNPs, then using Benjamini-Hochberg's FDR to provide a larger set for pathway testing.
+
+
+```r
+flkResults <- testData %>%
+  dplyr::select(snpID, `Pop ID`, P) %>%
+  mutate(`Pop ID` = c("Gum Creek (1996)", "Oraparinna (2012)")[`Pop ID`]) %>%
+  acast(`Pop ID` ~ snpID ) %>%
+  FLK(Fij = F_ij) %>%
+  rownames_to_column("snpID") %>%
+  as_tibble() %>%
+  dplyr::select(snpID, Ht, contains("F.LK")) %>%
+  mutate(FDR = p.adjust(F.LK.p.val, method = "fdr"),
+         P_bonf = p.adjust(F.LK.p.val, method = "bonferroni")) %>%
+  arrange(F.LK.p.val)
+```
+
+A total of 6 SNPs retained significance after the Bonferroni adjustment with a total of 62 being considered in the larger set of SNPs with an FDR of 0.05.
+
+
+```r
+testData %>%
+  dplyr::select(snpID, Chr, BP, `Pop ID`, `P Nuc`, `Q Nuc`, P) %>%
+  mutate(`Pop ID` = c("Gum Creek (1996)", "Oraparinna (2012)")[`Pop ID`],
+         SNP = paste(`P Nuc`, `Q Nuc`, sep = "/")) %>%
+  dcast(snpID + Chr + BP + SNP  ~ `Pop ID`, value.var = "P") %>%
+  right_join(flkResults) %>%
+  as_data_frame() %>%
+  arrange(F.LK.p.val) %>%
+  write_tsv( file.path("..", "results", "flkResults.tsv"))
+```
+
+
