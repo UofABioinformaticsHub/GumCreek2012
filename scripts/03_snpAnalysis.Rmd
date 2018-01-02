@@ -185,14 +185,9 @@ outgroupPCA <- dataForPCA %>%
 
 The two Gum Creek populations (1996 & 2012) clearly showed differences to the outgroup, however a strong "tail" was noted for some of the 2012 population along PC2.
 
-The samples forming this tail (i.e. PC3 > 0) were identified and the collection region for these samples was investigated, using the `GPS waypoint` value and the map of waypoints.
-The vast majority were found to come from the central collection region, and this collection region was added to the PCA plot.
+The samples forming this tail (i.e. PC2 > 5 & PC3 < 0 ) were identified and the collection region for these samples was investigated, using the GPS collection point.
+The vast majority were found to come from the central collection region, and this sub-population was added to the PCA plot.
 
-```{r central}
-central <- seq(44, 61) %>%
-  setdiff(c(45, 52, 53)) %>%
-  c(74:76)
-```
 
 ```{r pcaForPlot}
 pcaForPlot <- outgroupPCA$x %>%
@@ -205,8 +200,7 @@ pcaForPlot <- outgroupPCA$x %>%
   mutate(Population = if_else(Population == "gc", "Gum Creek (1996)",
                               if_else(Population == "ora", "Oraparinna (2012)", "Turretfield (2010)"))) %>%
   left_join(sampleMetadata, by = c("sampleID" = "ID")) %>%
-  mutate(Central = `GPS waypoint` %in% central,
-         Population = if_else(Population == "Oraparinna (2012)",
+  mutate(Population = if_else(Population == "Oraparinna (2012)",
                               if_else(PC3 < 0 && PC2 > 5, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population))
 ```
 
@@ -244,23 +238,25 @@ print(p23, vp = vp23)
 ```
 
 
-```{r}
+```{r map1, echo=FALSE, fig.cap="Collection points for all 2012 samples with colours showing sub-populations defined by PCA analysis.", fig.height=7, fig.width=7}
 loc <- c(range(sampleMetadata$Longitude) %>% mean,
          range(sampleMetadata$Latitude) %>% mean)
 ggMap <- get_map(loc, zoom = 12, maptype = "hybrid", source = "google")
-map1 <- ggmap(ggMap) +
+ggmap(ggMap) +
   geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population)) +
   scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
                                  rgb(0.8, 0.2, 0.2, 0.9),
                                  rgb(0.2, 0.8, 0.2, 0.9),
                                  rgb(0.5, 0.5, 1, 0.7))) +
   theme_bw() +
-  guides(colour = FALSE)
+  guides(colour = FALSE) +
+  labs(x = "Longitude",
+       y = "Latitude")
 ```
 
-```{r}
+```{r map2, echo=FALSE, fig.cap="Zoomed-in view of the central region for 2012 samples with colours showing sub-populations defined by PCA analysis.", fig.height=7, fig.width=7}
 zoomLoc <- c(138.753, -31.242)
-map2 <- get_map(zoomLoc, zoom = 15, maptype = "hybrid", source = "google") %>%
+get_map(zoomLoc, zoom = 15, maptype = "hybrid", source = "google") %>%
   ggmap() +
   geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population),
              size = 3) +
@@ -269,30 +265,29 @@ map2 <- get_map(zoomLoc, zoom = 15, maptype = "hybrid", source = "google") %>%
                                  rgb(0.2, 0.8, 0.2, 0.9),
                                  rgb(0.5, 0.5, 1, 0.7))) +
   theme_bw() +
-  guides(colour = FALSE)
+  guides(colour = FALSE) +
+  labs(x = "Longitude",
+       y = "Latitude")
 ```
 
-```{r, fig.show='hold', fig.width=5, fig.cap="Distribution of all 2012 samples (left), and zoomed in central region (right)."}
-map1
-map2
-```
 
 
 # Analysis
 
 ## Removal of SNPs Associated with Collection Region
 
-The structure observed in the 2012 population in the PCA could possibly be explained by recent migration into this region.
+The structure observed within the 2012 population in the PCA could possibly be explained by recent migration into this region.
 As the samples collected in the outer regions appeared very similar to the 1996 population in the above plots, this would possibly indicate this a very recent event as the genetic influence of this has not spread through the wider area.
-Although this may be due to other factors such as sampling bias, this structure was addressed by identifying SNPs which showed an association with the Central/Outer collection regions in this population.
-In this way, any candidate SNPs obtained below will be less impacted by this structure, and may be more reflective of the intended variable under study, namely selective pressure, not migration.
+Although this may be due to other factors such as sampling bias, this structure was addressed by identifying SNPs which showed an association with the sub-populations identified by PCA analysis.
+In this way, any candidate SNPs obtained below will be less impacted by this structure, and will be more reflective of the intended variable under study, as opposed to any internal structure of the 2012 population.
 
 ```{r oraRegions}
-oraRegions <- sampleMetadata %>%
-  mutate(Central = `GPS waypoint` %in% central) %>%
-  dplyr::select(ID, Central) %>%
+oraRegions <- pcaForPlot %>% 
+  filter(grepl("2012", Population)) %>% 
+  mutate(Central = grepl("Central", Population)) %>% 
+  dplyr::select(sampleID, Central) %>%
   as.data.frame() %>%
-  column_to_rownames("ID") 
+  column_to_rownames("sampleID") 
 ```
 
 
@@ -318,7 +313,7 @@ regionResults <- minorAlleleCounts %>%
 ```
 
 A total of `r sum(regionResults < 0.05, na.rm = TRUE)` SNPs were detected as showing a significant association between genotype and the collection region.
-Under H<sub>0</sub>, the number expected using &#945; = 0.05 would be `r floor(0.05*ncol(minorAlleleCounts))`, and as this number was nearly double that expected, this was taken as evidence of this being a genuine point of concerning this data.
+Under H<sub>0</sub>, the number expected using &#945; = 0.05 would be `r floor(0.05*ncol(minorAlleleCounts))`, and as this number was approximately double that expected, this was taken as evidence of this being a genuine point of concerning this data.
 
 Type II errors were of principle concern in this instance, and as such every SNP with p < 0.05 in the above test was excluded from downstream analysis.
 
@@ -352,15 +347,15 @@ reducedPCA$x %>%
   mutate(Population = if_else(Population == "gc", "Gum Creek (1996)",
                               if_else(Population == "ora", "Oraparinna (2012)", "Turretfield (2010)"))) %>%
   left_join(sampleMetadata, by = c("sampleID" = "ID")) %>%
-  mutate(Central = `GPS waypoint` %in% central,
+  mutate(Central = sampleID %in% filter(pcaForPlot, grepl("Central", Population))$sampleID,
          Population = if_else(Population == "Oraparinna (2012)",
                               if_else(Central, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population)) %>%
   ggplot(aes(PC1, PC2, colour = Population)) +
   geom_point(size = 3) +
   scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.8, 0.7),
-                                 rgb(0.2, 0.2, 0.8, 0.7),
-                                 rgb(0.2, 0.8, 0.2, 0.7)))
+                                 rgb(0.8, 0.2, 0.2, 0.9),
+                                 rgb(0.2, 0.8, 0.2, 0.9),
+                                 rgb(0.5, 0.5, 1, 0.7))) 
 ```
 
 
@@ -476,41 +471,57 @@ alleleResults %>%
             highlight = hLight)
 ```
 
+## FLK Analysis
+
+The FLK analysis performed separately was also included in order to compare the differing approaches.
+It should be noted that this analytic approach is very closely related to analysis by allele frequency, however, instead of Fisher's Exact Test a Chi-squared model is utilised incorporating genetic distances to ccount for genetics drift.
+
+```{r}
+flkResults <- file.path("..", "results", "flkResults.tsv") %>%
+  read_tsv()
+```
 
 
 ## Comparison of Results
 
 ```{r sigSNPs}
-fdr <- c(genotype = 0.1, allele = 0.1)
+fdr <- c(genotype = 0.1, allele = 0.05, flk = 0.05)
 sigSNPs <- c(filter(genotypeResults,FDR < fdr["genotype"])$snpID,
-             filter(alleleResults, FDR < fdr["allele"])$snpID) %>%
+             filter(alleleResults, FDR < fdr["allele"])$snpID,
+             filter(flkResults, FDR < fdr["flk"])$snpID) %>%
   unique %>%
   as.data.frame() %>%
   set_names("snpID") %>%
   mutate(genotype = snpID %in% filter(genotypeResults,FDR < fdr["genotype"])$snpID,
-         allele = snpID %in% filter(alleleResults,FDR < fdr["allele"])$snpID)
+         allele = snpID %in% filter(alleleResults,FDR < fdr["allele"])$snpID,
+         flk = snpID %in% filter(flkResults, FDR < fdr["flk"])$snpID)
 
 ```
+
+It was noted when comparing results from FLK and analysis by allele frequency alone that all SNPs from the allele frequency analysis were detected by either FLK or the genotpe analysis.
+As such this analysis was disregarded going forward.
+
 
 ```{r vennSNPs, echo = FALSE, fig.cap="Overlap between the lists of SNPs considered as associated with the different populations under either of the two analytic approaches, using an FDR of 0.1.", fig.width=6, fig.height=5, results='hide', fig.show='asis'}
 grid.newpage()
 draw.pairwise.venn(
   area1 = sum(sigSNPs$genotype),
-  area2 = sum(sigSNPs$allele),
-  cross.area = nrow(filter(sigSNPs, genotype, allele)),
-  category = c("Analysis by\nGenotype", "Analysis by\nAllele"), 
-  cat.pos = c(-150, 150), 
+  area2 = sum(sigSNPs$flk),
+  cross.area = nrow(filter(sigSNPs, genotype, flk)),
+  category = c("Analysis by\nGenotype", "FLK"), 
+  cat.pos = c(15, -15),
+  scaled = FALSE,
   cat.dist = 0.05
   )
 ```
 
 ### SNPs Associated With Populations Under Both Approaches
 
-The list of SNPs detected as associated with the population structure under both approaches is given below.
+The list of SNPs detected as associated with the population structure under both FLK and analysis by genotype is given below.
 
 ```{r, echo = FALSE}
 sigSNPs %>%
-  filter(genotype, allele) %>%
+  filter(genotype, flk) %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
   mutate(SNP = paste(`P Nuc`, `Q Nuc`, sep = "/"),
@@ -526,8 +537,8 @@ sigSNPs %>%
   arrange(Chr, BP) %>%
   left_join(genotypeResults) %>%
   dplyr::select(Chr, BP, snpID, `Change in log(OR)`, P_1996 = `1996`, P_2012 = `2012`, Genotype_p = p) %>%
-  left_join(alleleResults) %>%
-  dplyr::select(snpID, Chr, BP, `Change in log(OR)`, starts_with("P"), Genotype_p, Allele_p = p) %>%
+  left_join(flkResults) %>%
+  dplyr::select(snpID, Chr, BP, `Change in log(OR)`, P_1996, P_2012, Genotype_p, FLK_p = F.LK.p.val) %>%
   pander(justify = "llrrrrrr",
          style = "rmarkdown",
          big.mark = ",",
@@ -535,14 +546,14 @@ sigSNPs %>%
          caption = paste("Summary of changes in the major (P) allele between the two timepoints.",
                          "Changes in the log Odds ratio of observing the major allele are given,",
                          "along with estimated population frequencies.",
-                         "Results from testing by genotype or allele are given as raw p-values.",
-                         "All SNPs were considered as differentially associated with the two populations under both analyses to an FDR of 10\\%."))
+                         "Results from testing by genotype or FLK are given as raw p-values.",
+                         "All SNPs were considered as differentially associated with the two populations under both analyses to an FDR of 10\\%. (genotype) or 5\\% (FLK)"))
 ```
 
 
 ```{r genotypesBothModels, echo = FALSE,fig.cap = "Estimated genotype frequencies for SNPs found to be significant under both models. In each case the `A` allele represents the major allele in the 1996 population.", fig.width=9, fig.height=7}
 sigSNPs %>%
-  filter(genotype, allele) %>%
+  filter(genotype, flk) %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
   left_join(allCounts) %>%
@@ -560,12 +571,12 @@ sigSNPs %>%
 
 
 
-### SNPs Associated With Populations Under Analysis By Allele Only
+### SNPs Associated With Populations Under Analysis Using FLK Only
 
 
 ```{r, echo = FALSE}
 sigSNPs %>%
-  filter(!genotype, allele) %>%
+  filter(!genotype, flk) %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
   mutate(SNP = paste(`P Nuc`, `Q Nuc`, sep = "/"),
@@ -579,8 +590,8 @@ sigSNPs %>%
   }) %>%
   bind_rows() %>%
   arrange(Chr, BP) %>%
-  left_join(alleleResults) %>%
-  dplyr::select(Chr, BP, snpID, `Change in log(OR)`, P_1996 = `1996`, P_2012 = `2012`, Allele_p = p) %>%
+  left_join(flkResults) %>%
+  dplyr::select(Chr, BP, snpID, `Change in log(OR)`, P_1996 = `1996`, P_2012 = `2012`, FLK_p = F.LK.p.val) %>%
   pander(justify = "llrrrrr",
          style = "rmarkdown",
          big.mark = ",",         
@@ -589,12 +600,12 @@ sigSNPs %>%
                          "Changes in the log Odds ratio of observing the major allele are given,",
                          "along with estimated population frequencies.",
                          "Results from testing by allele count are given as raw p-values.",
-                         "All SNPs were considered as differentially associated with the two populations under the allele count analysis to an FDR of 10\\%."))
+                         "All SNPs were considered as differentially associated with the two populations under FLK analysis to an FDR of 5\\%."))
 ```
 
-```{r alleleModelOnly, echo = FALSE,fig.cap = "Estimated allele frequencies for SNPs found to be significant under analysis by allele only. In each case the `A` allele represents the major allele in the 1996 population.", fig.width=9, fig.height=7}
+```{r flkModelOnly, echo = FALSE,fig.cap = "Estimated allele frequencies for SNPs found to be significant under analysis by allele only. In each case the `A` allele represents the major allele in the 1996 population.", fig.width=9, fig.height=9}
 sigSNPs %>%
-  filter(!genotype, allele) %>%
+  filter(!genotype, flk) %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
   left_join(allCounts) %>%
@@ -607,8 +618,7 @@ sigSNPs %>%
   ggplot(aes(x = Allele, y = Frequency, fill = Population)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   scale_fill_manual(values = c(rgb(0.1, 0.1, 0.1), rgb(0.2, 0.2, 0.8))) +
-  facet_wrap(~snpID) +
-  theme(legend.position = c(7/8, 1/8))
+  facet_wrap(~snpID) 
 ```
 
 
@@ -618,7 +628,7 @@ sigSNPs %>%
 
 ```{r, echo = FALSE}
 sigSNPs %>%
-  filter(genotype, !allele) %>%
+  filter(genotype, !flk) %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
   # left_join(allCounts) %>%
@@ -644,13 +654,12 @@ sigSNPs %>%
                          "along with estimated population-level heterozygote frequencies.",
                          "Results from testing by genotype count are given as raw p-values.",
                          "All SNPs were considered as differentially associated with the two populations under the genotype count analysis to an FDR of 10\\%,",
-                         "However, no significant changes in allele frequencies were detected using an FDR of 10\\% for the analysis of allele counts.",
-                         "The possibility of the allele-level results being Type II errors cannot be discounted."))
+                         "However, no significant changes in allele frequencies were detected using an FDR of 5\\% for FLK analysis."))
 ```
 
 ```{r genotypeModelOnly, echo = FALSE,fig.cap = "Estimated genotype frequencies for SNPs found to be significant under analysis by genotype only. In each case the `A` allele represents the major allele in the 1996 population.", fig.width=9, fig.height=7}
 sigSNPs %>%
-  filter(genotype, !allele) %>%
+  filter(genotype, !flk) %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
   left_join(allCounts) %>%
@@ -663,9 +672,7 @@ sigSNPs %>%
   ggplot(aes(x = Genotype, y = Frequency, fill = Population)) +
   geom_bar(stat = "identity", position = position_dodge()) +
   scale_fill_manual(values = c(rgb(0.1, 0.1, 0.1), rgb(0.2, 0.2, 0.8))) +
-  facet_wrap(~snpID) +
-  theme(legend.position = c(0.5, 1/8),
-        legend.direction = "horizontal")
+  facet_wrap(~snpID) 
 ```
 
 

@@ -197,15 +197,9 @@ outgroupPCA <- dataForPCA %>%
 
 The two Gum Creek populations (1996 & 2012) clearly showed differences to the outgroup, however a strong "tail" was noted for some of the 2012 population along PC2.
 
-The samples forming this tail (i.e. PC3 > 0) were identified and the collection region for these samples was investigated, using the `GPS waypoint` value and the map of waypoints.
-The vast majority were found to come from the central collection region, and this collection region was added to the PCA plot.
+The samples forming this tail (i.e. PC2 > 5 & PC3 < 0 ) were identified and the collection region for these samples was investigated, using the GPS collection point.
+The vast majority were found to come from the central collection region, and this sub-population was added to the PCA plot.
 
-
-```r
-central <- seq(44, 61) %>%
-  setdiff(c(45, 52, 53)) %>%
-  c(74:76)
-```
 
 
 ```r
@@ -219,69 +213,36 @@ pcaForPlot <- outgroupPCA$x %>%
   mutate(Population = if_else(Population == "gc", "Gum Creek (1996)",
                               if_else(Population == "ora", "Oraparinna (2012)", "Turretfield (2010)"))) %>%
   left_join(sampleMetadata, by = c("sampleID" = "ID")) %>%
-  mutate(Central = `GPS waypoint` %in% central,
-         Population = if_else(Population == "Oraparinna (2012)",
+  mutate(Population = if_else(Population == "Oraparinna (2012)",
                               if_else(PC3 < 0 && PC2 > 5, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population))
 ```
 
 ![PCA for all samples including the outgroup and indicating the sample collection region for the 2012 samples.](03_snpAnalysis_files/figure-html/finalPCA-1.png)
 
 
+![Collection points for all 2012 samples with colours showing sub-populations defined by PCA analysis.](03_snpAnalysis_files/figure-html/map1-1.png)
 
-```r
-loc <- c(range(sampleMetadata$Longitude) %>% mean,
-         range(sampleMetadata$Latitude) %>% mean)
-ggMap <- get_map(loc, zoom = 12, maptype = "hybrid", source = "google")
-map1 <- ggmap(ggMap) +
-  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population)) +
-  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.2, 0.9),
-                                 rgb(0.2, 0.8, 0.2, 0.9),
-                                 rgb(0.5, 0.5, 1, 0.7))) +
-  theme_bw() +
-  guides(colour = FALSE)
-```
+![Zoomed-in view of the central region for 2012 samples with colours showing sub-populations defined by PCA analysis.](03_snpAnalysis_files/figure-html/map2-1.png)
 
-
-```r
-zoomLoc <- c(138.753, -31.242)
-map2 <- get_map(zoomLoc, zoom = 15, maptype = "hybrid", source = "google") %>%
-  ggmap() +
-  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population),
-             size = 3) +
-  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.2, 0.9),
-                                 rgb(0.2, 0.8, 0.2, 0.9),
-                                 rgb(0.5, 0.5, 1, 0.7))) +
-  theme_bw() +
-  guides(colour = FALSE)
-```
-
-
-```r
-map1
-map2
-```
-
-![Distribution of all 2012 samples (left), and zoomed in central region (right).](03_snpAnalysis_files/figure-html/unnamed-chunk-4-1.png)![Distribution of all 2012 samples (left), and zoomed in central region (right).](03_snpAnalysis_files/figure-html/unnamed-chunk-4-2.png)
 
 
 # Analysis
 
 ## Removal of SNPs Associated with Collection Region
 
-The structure observed in the 2012 population in the PCA could possibly be explained by recent migration into this region.
+The structure observed within the 2012 population in the PCA could possibly be explained by recent migration into this region.
 As the samples collected in the outer regions appeared very similar to the 1996 population in the above plots, this would possibly indicate this a very recent event as the genetic influence of this has not spread through the wider area.
-Although this may be due to other factors such as sampling bias, this structure was addressed by identifying SNPs which showed an association with the Central/Outer collection regions in this population.
-In this way, any candidate SNPs obtained below will be less impacted by this structure, and may be more reflective of the intended variable under study, namely selective pressure, not migration.
+Although this may be due to other factors such as sampling bias, this structure was addressed by identifying SNPs which showed an association with the sub-populations identified by PCA analysis.
+In this way, any candidate SNPs obtained below will be less impacted by this structure, and will be more reflective of the intended variable under study, as opposed to any internal structure of the 2012 population.
 
 
 ```r
-oraRegions <- sampleMetadata %>%
-  mutate(Central = `GPS waypoint` %in% central) %>%
-  dplyr::select(ID, Central) %>%
+oraRegions <- pcaForPlot %>% 
+  filter(grepl("2012", Population)) %>% 
+  mutate(Central = grepl("Central", Population)) %>% 
+  dplyr::select(sampleID, Central) %>%
   as.data.frame() %>%
-  column_to_rownames("ID") 
+  column_to_rownames("sampleID") 
 ```
 
 
@@ -307,8 +268,8 @@ regionResults <- minorAlleleCounts %>%
   })
 ```
 
-A total of 1943 SNPs were detected as showing a significant association between genotype and the collection region.
-Under H<sub>0</sub>, the number expected using &#945; = 0.05 would be 1016, and as this number was nearly double that expected, this was taken as evidence of this being a genuine point of concerning this data.
+A total of 2454 SNPs were detected as showing a significant association between genotype and the collection region.
+Under H<sub>0</sub>, the number expected using &#945; = 0.05 would be 1016, and as this number was approximately double that expected, this was taken as evidence of this being a genuine point of concerning this data.
 
 Type II errors were of principle concern in this instance, and as such every SNP with p < 0.05 in the above test was excluded from downstream analysis.
 
@@ -318,7 +279,7 @@ regionSNPs <- names(which(regionResults < 0.05))
 regionSNPs %>% writeLines(file.path("..", "results", "regionSNPs.txt"))
 ```
 
-Under this additional filtering step, **the original set of 20336 SNPs will be reduced to 18393** for testing by genotype and allele frequency.
+Under this additional filtering step, **the original set of 20336 SNPs will be reduced to 17882** for testing by genotype and allele frequency.
 
 
 ### Verification Of Removal
@@ -364,31 +325,29 @@ Under the full genotype model:
 
 - 0 genotypes were detected as being significantly associated with the two populations when controlling the FWER at &#945; = 0.05
 - 0 genotypes were detected as being significantly associated with the two populations when controlling the FDR at &#945; = 0.05
-- If controlling the FDR at 10% however, a total of 29 genotypes were considered as potentially associated with the population structure 
+- If controlling the FDR at 10% however, a total of 26 genotypes were considered as potentially associated with the population structure 
 - For the most highly ranked SNP (147965_18), the minor allele has been completely lost in the 2012 population
 
 
 |      Chr |          BP | snpID     |         p |     FDR |
 |---------:|------------:|:----------|----------:|--------:|
-|        7 | 131,862,327 | 147965_18 | 6.312e-06 | 0.08885 |
-|        5 |  12,946,260 | 158509_87 | 1.365e-05 | 0.08885 |
-|       13 | 125,904,892 | 104906_36 | 1.811e-05 | 0.08885 |
-|       14 |  34,667,589 | 98522_63  | 2.712e-05 | 0.08885 |
-|       14 |  92,793,012 | 101831_18 | 2.741e-05 | 0.08885 |
-|       18 |  25,311,139 | 72765_47  | 4.157e-05 | 0.08885 |
-|       18 |  25,311,176 | 72766_17  | 4.157e-05 | 0.08885 |
-|       18 |  25,311,153 | 72765_61  | 5.227e-05 | 0.08885 |
-| GL018754 |   1,365,061 | 37345_16  | 5.665e-05 | 0.08885 |
-|        6 |  27,103,576 | 157157_45 |  5.68e-05 | 0.08885 |
-| GL018881 |      24,230 | 21896_11  | 6.265e-05 | 0.08885 |
-|        6 |  27,103,573 | 157156_58 | 6.578e-05 | 0.08885 |
-|       17 |  69,838,525 | 80772_39  | 8.448e-05 | 0.08885 |
-|        2 |  47,053,622 | 185586_34 | 8.657e-05 | 0.08885 |
-|        7 |  38,250,131 | 151791_54 | 9.501e-05 | 0.08885 |
-|        7 |   2,702,916 | 151249_77 | 9.629e-05 | 0.08885 |
-|        7 |   2,702,919 | 151251_13 | 9.629e-05 | 0.08885 |
-| GL018881 |      88,327 | 233206_29 | 9.849e-05 | 0.08885 |
-| GL018754 |   1,395,711 | 37350_8   |     1e-04 | 0.08885 |
+|        7 | 131,862,327 | 147965_18 | 6.312e-06 | 0.08094 |
+|        5 |  12,946,260 | 158509_87 | 1.365e-05 | 0.08094 |
+|       20 |  14,022,385 | 64526_24  | 1.384e-05 | 0.08094 |
+|       13 | 125,904,892 | 104906_36 | 1.811e-05 | 0.08094 |
+|       14 |  34,667,589 | 98522_63  | 2.712e-05 |  0.0817 |
+|       14 |  92,793,012 | 101831_18 | 2.741e-05 |  0.0817 |
+|       18 |  25,311,139 | 72765_47  | 4.157e-05 | 0.09292 |
+|       18 |  25,311,176 | 72766_17  | 4.157e-05 | 0.09292 |
+|       18 |  25,311,153 | 72765_61  | 5.227e-05 | 0.09563 |
+| GL018754 |   1,365,061 | 37345_16  | 5.665e-05 | 0.09563 |
+|       17 |  69,838,525 | 80772_39  | 8.448e-05 | 0.09563 |
+|        2 |  47,053,622 | 185586_34 | 8.657e-05 | 0.09563 |
+|        7 |  38,250,131 | 151791_54 | 9.501e-05 | 0.09563 |
+|        7 |   2,702,916 | 151249_77 | 9.629e-05 | 0.09563 |
+|        7 |   2,702,919 | 151251_13 | 9.629e-05 | 0.09563 |
+| GL018881 |      88,327 | 233206_29 | 9.849e-05 | 0.09563 |
+| GL018754 |   1,395,711 | 37350_8   |     1e-04 | 0.09563 |
 
 Table: SNPs with raw p-values < 1e-04 when analysing by genotype. All SNPs were considered significant using an FDR < 0.1
 
@@ -422,109 +381,136 @@ Under this model:
 
 - 2 SNP alleles were detected as being significantly associated with the two populations when controlling the FWER at &#945; = 0.05.
 However, as these SNPs were within 21nt of each other, this may represent the same haplotype 
-- 16 SNP alleles were detected as being significantly associated with the two populations when controlling the FDR at &#945; = 0.05
-- extending the FDR to 10% yielded 31 SNP alleles
+- 14 SNP alleles were detected as being significantly associated with the two populations when controlling the FDR at &#945; = 0.05
+- extending the FDR to 10% yielded 27 SNP alleles
 
 
 
 |      Chr |          BP | snpID     |         p |    adjP |     FDR |
 |---------:|------------:|:----------|----------:|--------:|--------:|
-|        4 |  84,940,235 | 167108_14 | 9.143e-07 | 0.01682 | 0.01075 |
-|        4 |  84,940,214 | 167107_60 | 1.169e-06 |  0.0215 | 0.01075 |
-|       14 |  92,793,012 | 101831_18 | 4.112e-06 | 0.07564 | 0.02059 |
-| GL018713 |     365,938 | 50206_34  | 4.478e-06 | 0.08237 | 0.02059 |
-|       14 |  34,667,589 | 98522_63  | 8.562e-06 |  0.1575 |  0.0235 |
-| GL018881 |      24,230 | 21896_11  | 1.159e-05 |  0.2132 |  0.0235 |
-|        7 | 131,862,327 | 147965_18 | 1.235e-05 |  0.2272 |  0.0235 |
-| GL018881 |      88,327 | 233206_29 | 1.266e-05 |  0.2328 |  0.0235 |
-|        7 |   2,702,916 | 151249_77 | 1.431e-05 |  0.2632 |  0.0235 |
-|        7 |   2,702,919 | 151251_13 | 1.431e-05 |  0.2632 |  0.0235 |
-|       17 |  69,838,525 | 80772_39  | 1.468e-05 |  0.2699 |  0.0235 |
-| GL018704 |   4,853,505 | 53831_42  | 1.533e-05 |   0.282 |  0.0235 |
-| GL018881 |      24,194 | 21896_47  | 2.106e-05 |  0.3874 |   0.029 |
-|       18 |  25,311,153 | 72765_61  | 2.434e-05 |  0.4477 |   0.029 |
-|       18 |  25,311,139 | 72765_47  | 2.523e-05 |   0.464 |   0.029 |
-|       18 |  25,311,176 | 72766_17  | 2.523e-05 |   0.464 |   0.029 |
+|        4 |  84,940,235 | 167108_14 | 9.143e-07 | 0.01635 | 0.01045 |
+|        4 |  84,940,214 | 167107_60 | 1.169e-06 | 0.02091 | 0.01045 |
+|       14 |  92,793,012 | 101831_18 | 4.112e-06 | 0.07354 | 0.02002 |
+| GL018713 |     365,938 | 50206_34  | 4.478e-06 | 0.08008 | 0.02002 |
+|       14 |  34,667,589 | 98522_63  | 8.562e-06 |  0.1531 | 0.02492 |
+|        7 | 131,862,327 | 147965_18 | 1.235e-05 |  0.2209 | 0.02492 |
+| GL018881 |      88,327 | 233206_29 | 1.266e-05 |  0.2263 | 0.02492 |
+|        7 |   2,702,916 | 151249_77 | 1.431e-05 |  0.2558 | 0.02492 |
+|        7 |   2,702,919 | 151251_13 | 1.431e-05 |  0.2558 | 0.02492 |
+|       17 |  69,838,525 | 80772_39  | 1.468e-05 |  0.2624 | 0.02492 |
+| GL018704 |   4,853,505 | 53831_42  | 1.533e-05 |  0.2741 | 0.02492 |
+|       18 |  25,311,153 | 72765_61  | 2.434e-05 |  0.4352 | 0.03222 |
+|       18 |  25,311,139 | 72765_47  | 2.523e-05 |  0.4511 | 0.03222 |
+|       18 |  25,311,176 | 72766_17  | 2.523e-05 |  0.4511 | 0.03222 |
 
 Table: SNPs considered as significant when analysing by genotype using an FDR cutoff of 0.05
 
 
 ![Manhattan plot showing results for all SNPs on chromosomes 1:21 when analysing by allele frequencies. The horizontal line indicates the cutoff for an FDR of 10%, with SNPs considered significant under the Bonferroni adjustnt shown in green.](03_snpAnalysis_files/figure-html/manhattanAllele-1.png)
 
+## FLK Analysis
+
+The FLK analysis performed separately was also included in order to compare the differing approaches.
+It should be noted that this analytic approach is very closely related to analysis by allele frequency, however, instead of Fisher's Exact Test a Chi-squared model is utilised incorporating genetic distances to ccount for genetics drift.
+
+
+```r
+flkResults <- file.path("..", "results", "flkResults.tsv") %>%
+  read_tsv()
+```
 
 
 ## Comparison of Results
 
 
 ```r
-fdr <- c(genotype = 0.1, allele = 0.1)
+fdr <- c(genotype = 0.1, allele = 0.05, flk = 0.05)
 sigSNPs <- c(filter(genotypeResults,FDR < fdr["genotype"])$snpID,
-             filter(alleleResults, FDR < fdr["allele"])$snpID) %>%
+             filter(alleleResults, FDR < fdr["allele"])$snpID,
+             filter(flkResults, FDR < fdr["flk"])$snpID) %>%
   unique %>%
   as.data.frame() %>%
   set_names("snpID") %>%
   mutate(genotype = snpID %in% filter(genotypeResults,FDR < fdr["genotype"])$snpID,
-         allele = snpID %in% filter(alleleResults,FDR < fdr["allele"])$snpID)
+         allele = snpID %in% filter(alleleResults,FDR < fdr["allele"])$snpID,
+         flk = snpID %in% filter(flkResults, FDR < fdr["flk"])$snpID)
 ```
+
+It was noted when comparing results from FLK and analysis by allele frequency alone that all SNPs from the allele frequency analysis were detected by either FLK or the genotpe analysis.
+As such this analysis was disregarded going forward.
+
 
 ![Overlap between the lists of SNPs considered as associated with the different populations under either of the two analytic approaches, using an FDR of 0.1.](03_snpAnalysis_files/figure-html/vennSNPs-1.png)
 
 ### SNPs Associated With Populations Under Both Approaches
 
-The list of SNPs detected as associated with the population structure under both approaches is given below.
+The list of SNPs detected as associated with the population structure under both FLK and analysis by genotype is given below.
 
 
-| snpID     | Chr      |          BP | Change in log(OR) | P_1996 | P_2012 |  Allele_p | Genotype_p |
-|:----------|:---------|------------:|------------------:|-------:|-------:|----------:|-----------:|
-| 127156_20 | 10       |  14,373,457 |            -1.291 |    0.5 | 0.2157 | 5.695e-05 |  0.0001159 |
-| 98522_63  | 14       |  34,667,589 |            -1.897 | 0.9375 | 0.6923 | 8.562e-06 |  2.712e-05 |
-| 101831_18 | 14       |  92,793,012 |             2.407 | 0.7444 |   0.97 | 4.112e-06 |  2.741e-05 |
-| 80772_39  | 17       |  69,838,525 |             1.584 | 0.5952 | 0.8776 | 1.468e-05 |  8.448e-05 |
-| 72765_47  | 18       |  25,311,139 |            -1.417 | 0.8333 | 0.5481 | 2.523e-05 |  4.157e-05 |
-| 72765_61  | 18       |  25,311,153 |            -1.413 | 0.8333 |  0.549 | 2.434e-05 |  5.227e-05 |
-| 72766_17  | 18       |  25,311,176 |            -1.417 | 0.8333 | 0.5481 | 2.523e-05 |  4.157e-05 |
-| 68946_78  | 19       |  32,825,478 |            -1.547 | 0.9062 | 0.6731 | 5.891e-05 |  0.0001032 |
-| 151249_77 | 7        |   2,702,916 |             2.277 | 0.7788 | 0.9717 | 1.431e-05 |  9.629e-05 |
-| 151251_13 | 7        |   2,702,919 |             2.277 | 0.7788 | 0.9717 | 1.431e-05 |  9.629e-05 |
-| 147965_18 | 7        | 131,862,327 |               Inf | 0.8478 |      1 | 1.235e-05 |  6.312e-06 |
-| 36566_45  | GL018758 |   1,220,835 |            -1.162 | 0.5096 | 0.2453 | 0.0001083 |  0.0001331 |
-| 36567_12  | GL018758 |   1,220,869 |            -1.162 | 0.5096 | 0.2453 | 0.0001083 |  0.0001331 |
-| 21896_47  | GL018881 |      24,194 |            -1.296 | 0.5426 | 0.2451 | 2.106e-05 |  0.0001127 |
-| 21896_11  | GL018881 |      24,230 |            -1.334 | 0.5521 | 0.2451 | 1.159e-05 |  6.265e-05 |
-| 233206_29 | GL018881 |      88,327 |             1.466 | 0.5357 | 0.8333 | 1.266e-05 |  9.849e-05 |
+| snpID     | Chr      |          BP | Change in log(OR) | P_1996 | P_2012 | Genotype_p |     FLK_p |
+|:----------|:---------|------------:|------------------:|-------:|-------:|-----------:|----------:|
+| 127156_20 | 10       |  14,373,457 |            -1.291 |    0.5 | 0.2157 |  0.0001159 | 8.942e-05 |
+| 104906_36 | 13       | 125,904,892 |            -1.492 | 0.9302 |   0.75 |  1.811e-05 | 4.988e-05 |
+| 98522_63  | 14       |  34,667,589 |            -1.897 | 0.9375 | 0.6923 |  2.712e-05 | 6.373e-08 |
+| 80772_39  | 17       |  69,838,525 |             1.584 | 0.5952 | 0.8776 |  8.448e-05 | 5.139e-05 |
+| 72765_47  | 18       |  25,311,139 |            -1.417 | 0.8333 | 0.5481 |  4.157e-05 | 2.369e-06 |
+| 72765_61  | 18       |  25,311,153 |            -1.413 | 0.8333 |  0.549 |  5.227e-05 | 2.541e-06 |
+| 72766_17  | 18       |  25,311,176 |            -1.417 | 0.8333 | 0.5481 |  4.157e-05 | 2.369e-06 |
+| 68946_78  | 19       |  32,825,478 |            -1.547 | 0.9062 | 0.6731 |  0.0001032 | 3.433e-06 |
+| 204810_79 | GL018802 |     439,482 |            -1.836 | 0.9583 | 0.7857 |  0.0001362 | 6.111e-06 |
+| 233206_29 | GL018881 |      88,327 |             1.466 | 0.5357 | 0.8333 |  9.849e-05 | 3.363e-05 |
 
-Table: Summary of changes in the major (P) allele between the two timepoints. Changes in the log Odds ratio of observing the major allele are given, along with estimated population frequencies. Results from testing by genotype or allele are given as raw p-values. All SNPs were considered as differentially associated with the two populations under both analyses to an FDR of 10\%.
+Table: Summary of changes in the major (P) allele between the two timepoints. Changes in the log Odds ratio of observing the major allele are given, along with estimated population frequencies. Results from testing by genotype or FLK are given as raw p-values. All SNPs were considered as differentially associated with the two populations under both analyses to an FDR of 10\%. (genotype) or 5\% (FLK)
 
 
 ![Estimated genotype frequencies for SNPs found to be significant under both models. In each case the `A` allele represents the major allele in the 1996 population.](03_snpAnalysis_files/figure-html/genotypesBothModels-1.png)
 
 
 
-### SNPs Associated With Populations Under Analysis By Allele Only
+### SNPs Associated With Populations Under Analysis Using FLK Only
 
 
 
-| Chr      | BP          |     snpID | Change in log(OR) | P_1996 | P_2012 |  Allele_p |
+| Chr      | BP          |     snpID | Change in log(OR) | P_1996 | P_2012 |     FLK_p |
 |:---------|:------------|----------:|------------------:|-------:|-------:|----------:|
-| 1        | 88,290,774  | 200447_80 |            -1.354 |   0.86 | 0.6132 | 6.994e-05 |
-| 10       | 14,373,501  | 127157_45 |            -1.266 |    0.5 |   0.22 | 9.337e-05 |
-| 13       | 128,331,083 | 105215_39 |            -1.199 | 0.6304 | 0.3396 | 5.926e-05 |
-| 16       | 69,850,541  |  87407_11 |            -1.183 |   0.62 | 0.3333 | 7.197e-05 |
-| 16       | 69,850,609  |  208806_6 |             -1.14 |   0.61 | 0.3333 | 0.0001291 |
-| 3        | 53,556,574  | 175501_56 |            -1.324 | 0.8796 | 0.6604 | 0.0001568 |
-| 4        | 84,940,214  | 167107_60 |             1.987 | 0.6354 | 0.9271 | 1.169e-06 |
-| 4        | 84,940,235  | 167108_14 |             1.997 | 0.6383 | 0.9286 | 9.143e-07 |
-| GL018704 | 4,853,505   |  53831_42 |            -1.346 | 0.7045 |  0.383 | 1.533e-05 |
-| GL018713 | 365,938     |  50206_34 |            -1.533 | 0.7857 | 0.4419 | 4.478e-06 |
-| GL018717 | 314,346     |  48659_40 |            -1.471 | 0.8571 | 0.5795 | 8.114e-05 |
-| GL018739 | 75,851      |  41475_63 |            -1.232 | 0.7273 | 0.4375 | 9.437e-05 |
-| GL018878 | 365,646     | 218710_78 |            -1.214 | 0.6667 | 0.3725 |  7.13e-05 |
-| GL018881 | 22,826      |  21889_62 |            -1.143 | 0.5755 | 0.3019 | 9.673e-05 |
-| GL018985 | 50,536      |   15651_5 |             1.432 | 0.6735 | 0.8962 | 0.0001242 |
+| 1        | 20,066,891  | 195917_31 |            -1.181 | 0.7442 | 0.4717 | 5.149e-05 |
+| 1        | 88,290,774  | 200447_80 |            -1.354 |   0.86 | 0.6132 |  1.39e-05 |
+| 10       | 14,373,501  | 127157_45 |            -1.266 |    0.5 |   0.22 | 0.0001145 |
+| 10       | 15,010,006  | 127237_21 |            -1.303 | 0.8333 | 0.5761 | 1.765e-05 |
+| 11       | 36,239,538  |  123550_8 |            -1.427 | 0.9091 | 0.7059 | 3.233e-05 |
+| 11       | 36,239,606  | 123551_30 |            -1.317 | 0.8864 | 0.6765 | 6.409e-05 |
+| 13       | 15,938,245  | 107422_35 |            -2.351 | 0.9881 | 0.8878 | 6.571e-05 |
+| 13       | 7.6e+07     | 111958_69 |            -1.341 | 0.8958 | 0.6923 | 6.507e-05 |
+| 13       | 128,331,083 | 105215_39 |            -1.199 | 0.6304 | 0.3396 | 5.535e-05 |
+| 16       | 735,716     |  87819_88 |            -2.016 | 0.9762 | 0.8452 | 2.811e-05 |
+| 16       | 69,850,541  |  87407_11 |            -1.183 |   0.62 | 0.3333 | 7.397e-05 |
+| 18       | 68,517,919  | 208110_71 |            -1.304 | 0.8478 |  0.602 | 2.381e-05 |
+| 18       | 68,517,942  | 208111_21 |            -1.312 | 0.8478 |    0.6 | 2.064e-05 |
+| 2        | 93,561,889  | 214772_69 |            -2.607 | 0.9898 | 0.8774 | 9.255e-06 |
+| 21       | 14,643,101  |  62998_77 |            -2.474 | 0.9889 | 0.8824 | 2.511e-05 |
+| 3        | 53,556,574  | 175501_56 |            -1.324 | 0.8796 | 0.6604 | 4.414e-05 |
+| 4        | 84,940,214  | 167107_60 |             1.987 | 0.6354 | 0.9271 | 1.564e-05 |
+| 4        | 84,940,235  | 167108_14 |             1.997 | 0.6383 | 0.9286 |  1.64e-05 |
+| 7        | 8,307,536   | 154818_20 |            -1.427 | 0.9135 |  0.717 | 4.198e-05 |
+| 9        | 89,862,459  | 211772_50 |            -1.807 | 0.9535 | 0.7708 | 4.259e-06 |
+| 9        | 89,862,481  | 211772_28 |            -1.627 | 0.9432 | 0.7653 | 2.053e-05 |
+| 9        | 89,862,497  | 211772_12 |            -1.596 | 0.9432 | 0.7708 | 3.351e-05 |
+| 9        | 90,037,571  | 137949_40 |             -1.78 | 0.9667 | 0.8302 | 7.017e-05 |
+| 9        | 90,037,630  | 137951_16 |            -1.803 | 0.9674 | 0.8302 | 5.925e-05 |
+| GL018704 | 4,853,505   |  53831_42 |            -1.346 | 0.7045 |  0.383 | 4.169e-06 |
+| GL018713 | 365,938     |  50206_34 |            -1.533 | 0.7857 | 0.4419 | 1.472e-07 |
+| GL018717 | 314,346     |  48659_40 |            -1.471 | 0.8571 | 0.5795 | 1.555e-06 |
+| GL018723 | 261,534     | 235050_26 |            -2.152 | 0.9773 | 0.8333 | 5.513e-06 |
+| GL018723 | 266,003     | 206301_14 |            -2.047 | 0.9792 | 0.8585 | 4.882e-05 |
+| GL018739 | 75,851      |  41475_63 |            -1.232 | 0.7273 | 0.4375 | 2.309e-05 |
+| GL018761 | 75,552      |  36037_47 |            -2.377 | 0.9894 | 0.8962 | 0.0001096 |
+| GL018878 | 365,646     | 218710_78 |            -1.214 | 0.6667 | 0.3725 | 3.554e-05 |
+| GL019002 | 95,028      |  14915_82 |            -1.233 | 0.7955 | 0.5312 | 3.191e-05 |
+| GL019406 | 5,672       |    5908_8 |            -1.657 |   0.96 | 0.8208 | 0.0001212 |
 
-Table: Summary of changes in the major (P) allele between the two timepoints. Changes in the log Odds ratio of observing the major allele are given, along with estimated population frequencies. Results from testing by allele count are given as raw p-values. All SNPs were considered as differentially associated with the two populations under the allele count analysis to an FDR of 10\%.
+Table: Summary of changes in the major (P) allele between the two timepoints. Changes in the log Odds ratio of observing the major allele are given, along with estimated population frequencies. Results from testing by allele count are given as raw p-values. All SNPs were considered as differentially associated with the two populations under FLK analysis to an FDR of 5\%.
 
-![Estimated allele frequencies for SNPs found to be significant under analysis by allele only. In each case the `A` allele represents the major allele in the 1996 population.](03_snpAnalysis_files/figure-html/alleleModelOnly-1.png)
+![Estimated allele frequencies for SNPs found to be significant under analysis by allele only. In each case the `A` allele represents the major allele in the 1996 population.](03_snpAnalysis_files/figure-html/flkModelOnly-1.png)
 
 
 
@@ -534,21 +520,24 @@ Table: Summary of changes in the major (P) allele between the two timepoints. Ch
 
 | Chr      | BP          |     snpID | Change in log(OR) | P_1996 | P_2012 | Genotype_p |
 |:---------|:------------|----------:|------------------:|-------:|-------:|-----------:|
-| 13       | 125,904,892 | 104906_36 |             2.278 |  0.093 |    0.5 |  1.811e-05 |
+| 14       | 92,793,012  | 101831_18 |            -2.253 | 0.3778 |   0.06 |  2.741e-05 |
 | 18       | 14,288,883  |  72030_54 |            -1.408 | 0.7347 | 0.4038 |  0.0001334 |
 | 2        | 37,519,845  |  184763_8 |                -2 | 0.4348 | 0.0943 |  0.0001431 |
 | 2        | 47,053,622  | 185586_34 |            -2.611 | 0.3571 | 0.0392 |  8.657e-05 |
+| 20       | 14,022,385  |  64526_24 |            -1.971 | 0.7391 |  0.283 |  1.384e-05 |
 | 5        | 12,946,260  | 158509_87 |             3.324 | 0.6429 | 0.9804 |  1.365e-05 |
-| 6        | 27,103,573  | 157156_58 |            -1.588 | 0.6981 | 0.3208 |  6.578e-05 |
-| 6        | 27,103,576  | 157157_45 |            -1.653 | 0.7115 | 0.3208 |   5.68e-05 |
+| 7        | 2,702,916   | 151249_77 |            -2.091 | 0.3269 | 0.0566 |  9.629e-05 |
+| 7        | 2,702,919   | 151251_13 |            -2.091 | 0.3269 | 0.0566 |  9.629e-05 |
 | 7        | 38,250,131  | 151791_54 |            -2.582 | 0.3462 | 0.0385 |  9.501e-05 |
+| 7        | 131,862,327 | 147965_18 |              -Inf | 0.3043 |      0 |  6.312e-06 |
 | 9        | 48,543,229  | 134595_50 |             1.541 | 0.3061 | 0.6731 |   0.000107 |
 | GL018754 | 1,365,061   |  37345_16 |            -1.453 | 0.7111 | 0.3654 |  5.665e-05 |
 | GL018754 | 1,395,679   |  37349_74 |             -1.34 | 0.6939 | 0.3725 |  0.0001063 |
 | GL018754 | 1,395,711   |   37350_8 |            -1.369 |    0.7 | 0.3725 |      1e-04 |
-| GL018802 | 439,482     | 204810_79 |             2.111 | 0.0833 | 0.4286 |  0.0001362 |
+| GL018758 | 1,220,835   |  36566_45 |            -1.055 | 0.5962 | 0.3396 |  0.0001331 |
+| GL018758 | 1,220,869   |  36567_12 |            -1.055 | 0.5962 | 0.3396 |  0.0001331 |
 
-Table: Summary of changes in heterozygosity between the two timepoints. Changes in the log Odds ratio of observing heterozygotes are given, along with estimated population-level heterozygote frequencies. Results from testing by genotype count are given as raw p-values. All SNPs were considered as differentially associated with the two populations under the genotype count analysis to an FDR of 10\%, However, no significant changes in allele frequencies were detected using an FDR of 10\% for the analysis of allele counts. The possibility of the allele-level results being Type II errors cannot be discounted.
+Table: Summary of changes in heterozygosity between the two timepoints. Changes in the log Odds ratio of observing heterozygotes are given, along with estimated population-level heterozygote frequencies. Results from testing by genotype count are given as raw p-values. All SNPs were considered as differentially associated with the two populations under the genotype count analysis to an FDR of 10\%, However, no significant changes in allele frequencies were detected using an FDR of 5\% for FLK analysis.
 
 ![Estimated genotype frequencies for SNPs found to be significant under analysis by genotype only. In each case the `A` allele represents the major allele in the 1996 population.](03_snpAnalysis_files/figure-html/genotypeModelOnly-1.png)
 
