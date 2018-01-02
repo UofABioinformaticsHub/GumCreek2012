@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE,
                       message = FALSE, warning = FALSE)
 ```
 
-```{r}
+```{r loadPackages}
 library(tidyverse)
 library(parallel)
 library(pander)
@@ -30,7 +30,7 @@ library(qqman)
 ```
 
 
-```{r}
+```{r setParams}
 nCores <- min(12, detectCores() - 1)
 logit <- binomial()$linkfun
 alpha <- 0.05
@@ -56,13 +56,13 @@ The analysis uses two simple models fully described by Lewis in [Genetic associa
 
 # Data Setup
 
-```{r}
+```{r allData}
 allData <- file.path("..", "data", "filteredSNPs.tsv.gz") %>%
   gzfile() %>%
   read_delim(delim = "\t") 
 ```
 
-```{r}
+```{r popSizes}
 popSizes <- allData %>%
   group_by(`Pop ID`) %>%
   summarise(N = max(N)) %>%
@@ -75,7 +75,7 @@ popSizes <- allData %>%
 Data from the `r comma(length(unique(allData$snpID)))` SNPs selected for testing was loaded, and sample sizes formed as a simple table.
 Using the observed major allele frequencies (`P`) and heterozygote frequencies (`Obs Het`), the allele frequency and genotype frequency tables were constructed.
 
-```{r}
+```{r allCounts}
 allCounts <- allData %>%
   mutate(A = round(P*2*N, 0), 
          B = round((1-P)*2*N, 0), 
@@ -87,7 +87,7 @@ allCounts <- allData %>%
 
 The complete set of minor allele counts derived from the original genepop file was also loaded
 
-```{r}
+```{r minorAlleleCounts}
 minorAlleleCounts <- file.path("..", "data", "minorAlleleCounts.tsv.gz") %>%
   gzfile() %>%
   read_tsv() %>%
@@ -98,7 +98,7 @@ minorAlleleCounts <- file.path("..", "data", "minorAlleleCounts.tsv.gz") %>%
 
 Populations are defined by the sample names in this object were also defined.
 
-```{r}
+```{r allelePops}
 allelePops <- gsub("(gc|ora|TF|Y|pt|tf).+", "\\1", rownames(minorAlleleCounts))
 allelePops[!allelePops %in% c("gc", "ora")] <- "tf"
 allelePops <- as.factor(allelePops)
@@ -107,7 +107,7 @@ names(allelePops) <- rownames(minorAlleleCounts)
 
 In addition, the metadata from sample collection was loaded.
 
-```{r}
+```{r sampleMetadata}
 sampleMetadata <- file.path("..", "data", "Samples_Nov2012_GumCreek.xlsx") %>%
   read_excel(skip = 1) %>%
   mutate(ID = gsub("[Oo][Rr][Aa] ", "ora", ID))
@@ -120,7 +120,7 @@ sampleMetadata <- file.path("..", "data", "Samples_Nov2012_GumCreek.xlsx") %>%
 
 In order to perform PCA, missing values must be either imputed or the entire sample/SNPs must be removed.
 
-```{r}
+```{r missingBySample}
 missingBySample <- minorAlleleCounts %>%
   apply(MARGIN = 1, function(x){mean(is.na(x))}) 
 ```
@@ -128,7 +128,7 @@ missingBySample <- minorAlleleCounts %>%
 `r sum(missingBySample > 1/3)` samples were missing information for more than 1/3 of SNPs and for the purposes of PCA, these samples were removed from the dataset.
 
 
-```{r}
+```{r missingByAllele}
 missingByAllele <- minorAlleleCounts %>%
   extract(missingBySample <= 1/3,) %>%
   apply(MARGIN = 2, function(x){mean(is.na(x))}) 
@@ -136,14 +136,14 @@ missingByAllele <- minorAlleleCounts %>%
 
 Of these remaining samples `r sum(missingByAllele < 0.05)` alleles were identified in >95% of individuals, and this subset of the data was then chosen as the basis for PCA.
 
-```{r}
+```{r dataForPCA}
 dataForPCA <- minorAlleleCounts[missingBySample <= 1/3, missingByAllele < 0.05]
 ```
 
 Missing values were then randomly sampled using the distribution of alleles in the remaining samples.
 Population structure was not taken into account at this point so as to not artificially inflate correlations within populations.
 
-```{r}
+```{r dataForPCA_missing}
 dataForPCA %<>%
   apply(MARGIN = 2, function(x){
     missing <- is.na(x)
@@ -157,14 +157,14 @@ dataForPCA %<>%
 After this process it was noted that there was no allelic differences amongst the remaining samples for `r sum(apply(dataForPCA, MARGIN = 2, function(x){length(unique(x))}) == 1)` SNPs, implying that the observed variants at these loci were contained within the samples with large numbers of missing data.
 These loci were also removed before performing PCA.
 
-```{r}
+```{r dataForPCA_subset}
 dataForPCA %<>% extract(, apply(., MARGIN = 2, function(x){length(unique(x))}) > 1)
 ```
 
 
 ## PCA Including The Outgroup Samples
 
-```{r}
+```{r outgroupPCA}
 outgroupPCA <- dataForPCA %>%
   prcomp(center = TRUE)
 ```
@@ -174,13 +174,13 @@ The two Gum Creek populations (1996 & 2012) clearly showed differences to the ou
 The samples forming this tail (i.e. PC2 > 5) were identified and the collection region for these samples was investigated, using the `GPS waypoint` value and the map of waypoints.
 The vast majority were found to come from the central collection region, and this collection region was added to the PCA plot.
 
-```{r}
+```{r central}
 central <- seq(44, 61) %>%
   setdiff(c(45, 52, 53)) %>%
   c(74:76)
 ```
 
-```{r}
+```{r pcaForPlot}
 pcaForPlot <- outgroupPCA$x %>%
   as.data.frame() %>%
   rownames_to_column("sampleID") %>%
@@ -239,7 +239,7 @@ As the samples collected in the outer regions appeared very similar to the 1996 
 Although this may be due to other factors such as sampling bias, this structure was addressed by identifying SNPs which showed an association with the Central/Outer collection regions in this population.
 In this way, any candidate SNPs obtained below will be less impacted by this structure, and may be more reflective of the intended variable under study, namely selective pressure, not migration.
 
-```{r}
+```{r oraRegions}
 oraRegions <- sampleMetadata %>%
   mutate(Central = `GPS waypoint` %in% central) %>%
   dplyr::select(ID, Central) %>%
@@ -254,7 +254,7 @@ This model tests:
 H<sub>0</sub>: No association between genotypes and collection region  
 H<sub>A</sub>: An association exists between genotypes and collection region
 
-```{r}
+```{r ora}
 ora <- grep("ora", rownames(minorAlleleCounts), value = TRUE)
 regionResults <- minorAlleleCounts %>%
   extract(ora,) %>%
@@ -274,7 +274,7 @@ Under H<sub>0</sub>, the number expected using &#945; = 0.05 would be `r floor(0
 
 Type II errors were of principle concern in this instance, and as such every SNP with p < 0.05 in the above test was excluded from downstream analysis.
 
-```{r}
+```{r regionSNPs}
 regionSNPs <- names(which(regionResults < 0.05))
 regionSNPs %>% writeLines(file.path("..", "results", "regionSNPs.txt"))
 ```
@@ -287,13 +287,13 @@ Under this additional filtering step, **the original set of `r length(regionResu
 In order to verify that the removal of the above SNPs removed the undesired population structure from the 2012 population, the above PCA was repeated, excluding the SNPs marked for removal.
 The previous structure noted in the data was no longer evident, and as such, these SNPs were marked for removal during analysis by genotype and allele frequency. 
 
-```{r}
+```{r reducedPCA}
 reducedPCA <- dataForPCA %>%
   extract(, !colnames(.) %in% regionSNPs) %>%
   prcomp()
 ```
 
-```{r reducedPCA, echo = FALSE, fig.cap="Principal Component Analysis after removal of SNPs showing evidence of structure within the 2012 population.", fig.height=5, fig.width=7}
+```{r plotReducedPCA, echo = FALSE, fig.cap="Principal Component Analysis after removal of SNPs showing evidence of structure within the 2012 population.", fig.height=5, fig.width=7}
 reducedPCA$x %>%
   as.data.frame() %>%
   rownames_to_column("sampleID") %>%
@@ -322,7 +322,7 @@ This model tests:
 H<sub>0</sub>: No association between genotypes and populations  
 H<sub>A</sub>: An association exists between genotypes and populations
 
-```{r}
+```{r genotypeResults}
 genotypeResults <- allCounts %>%
   filter(!snpID %in% regionSNPs) %>%
   split(f = .$snpID) %>%
@@ -377,7 +377,7 @@ This model tests:
 H<sub>0</sub>: No association between allele frequencies and populations  
 H<sub>A</sub>: An association exists between allele frequencies  and populations
 
-```{r}
+```{r alleleResults}
 alleleResults <- allCounts %>%
   filter(!snpID %in% regionSNPs) %>%
   split(f = .$snpID) %>%
@@ -432,7 +432,7 @@ alleleResults %>%
 
 ## Comparison of Results
 
-```{r}
+```{r sigSNPs}
 fdr <- c(genotype = 0.1, allele = 0.1)
 sigSNPs <- c(filter(genotypeResults,FDR < fdr["genotype"])$snpID,
              filter(alleleResults, FDR < fdr["allele"])$snpID) %>%
@@ -641,7 +641,7 @@ genotypeResults %>%
 ```
 
 
-```{r, results='asis'}
+```{r, echo=FALSE, results='asis'}
 pander(sessionInfo()) 
 ```
 
