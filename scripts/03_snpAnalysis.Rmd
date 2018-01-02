@@ -27,6 +27,8 @@ library(readxl)
 library(magrittr)
 library(VennDiagram)
 library(qqman)
+library(sp)
+library(ggmap)
 ```
 
 
@@ -105,13 +107,24 @@ allelePops <- as.factor(allelePops)
 names(allelePops) <- rownames(minorAlleleCounts)
 ```
 
-In addition, the metadata from sample collection was loaded.
+In addition, the metadata from 2012 sample collection was loaded.
 
 ```{r sampleMetadata}
 sampleMetadata <- file.path("..", "data", "Samples_Nov2012_GumCreek.xlsx") %>%
   read_excel(skip = 1) %>%
   mutate(ID = gsub("[Oo][Rr][Aa] ", "ora", ID))
 ```
+
+GPS Locations were added to the metadata.
+
+```{r}
+gpsPoints <-file.path("..", "data", "GPS_Locations.xlsx") %>%
+  read_excel() %>%
+  dplyr::select(ID = Sample, ends_with("tude")) %>%
+  mutate(ID = gsub("[Oo][Rr][Aa] ([0-9ABC]*)", "ora\\1", ID))
+sampleMetadata %<>% left_join(gpsPoints, by = "ID")
+```
+
 
 
 # Principal Component Analysis
@@ -171,7 +184,7 @@ outgroupPCA <- dataForPCA %>%
 
 The two Gum Creek populations (1996 & 2012) clearly showed differences to the outgroup, however a strong "tail" was noted for some of the 2012 population along PC2.
 
-The samples forming this tail (i.e. PC2 > 5) were identified and the collection region for these samples was investigated, using the `GPS waypoint` value and the map of waypoints.
+The samples forming this tail (i.e. PC3 > 0) were identified and the collection region for these samples was investigated, using the `GPS waypoint` value and the map of waypoints.
 The vast majority were found to come from the central collection region, and this collection region was added to the PCA plot.
 
 ```{r central}
@@ -193,7 +206,8 @@ pcaForPlot <- outgroupPCA$x %>%
   left_join(sampleMetadata, by = c("sampleID" = "ID")) %>%
   mutate(Central = `GPS waypoint` %in% central,
          Population = if_else(Population == "Oraparinna (2012)",
-                              if_else(Central, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population)) 
+                              if_else(Central, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population),
+         PCATail = grepl("2012", Population) && PC3 > 3 && PC2 < 0) 
 ```
 
 ```{r finalPCA, echo = FALSE, fig.cap = "PCA for all samples including the outgroup and indicating the sample collection region for the 2012 samples."}
@@ -212,7 +226,7 @@ p13 <- ggplot(pcaForPlot, aes(PC1, PC3, colour = Population)) +
                                  rgb(0.2, 0.8, 0.2, 0.7))) +
   guides(colour = FALSE) +
   theme(text = element_text(size = 12))
-p23 <- ggplot(pcaForPlot, aes(PC2, PC3, colour = Population)) +
+p23 <- ggplot(pcaForPlot, aes(PC2, PC3, colour = PCATail)) +
   geom_point(size = 3) +
   scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
                                  rgb(0.8, 0.2, 0.8, 0.7),
@@ -227,6 +241,23 @@ grid.newpage()
 print(p12, vp = vp12)
 print(p13, vp = vp13)
 print(p23, vp = vp23)
+```
+
+
+```{r}
+loc <- c(range(sampleMetadata$Longitude) %>% mean,
+         range(sampleMetadata$Latitude) %>% mean)
+ggMap <- get_map(loc, zoom = 12, maptype = "hybrid", source = "google")
+ggmap(ggMap) +
+  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = PCATail))
+```
+
+```{r}
+zoomLoc <- c(138.753, -31.242)
+get_map(zoomLoc, zoom = 16, maptype = "hybrid", source = "google") %>%
+  ggmap() +
+  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = PCATail),
+             size = 3)
 ```
 
 
