@@ -202,7 +202,7 @@ reynDist %>%
 F_ij <- Fij(neutMatrix, "Turretfield (2010)", reynDist)
 ```
 
-```{r njTree, echo=FALSE, fig.cap="Neighbout-joining Tree for all 3 populations."}
+```{r njTree, echo=FALSE, fig.cap="Neighbour-joining Tree for all 3 populations."}
 plot(root(nj(reynDist), "Turretfield (2010)"))
 ```
 
@@ -216,7 +216,7 @@ testData <-  file.path("..", "data", "filteredSNPs.tsv.gz") %>%
   filter(!snpID %in% regionSnps)
 ```
 
-The set of `r nrow(testData)/2` SNPs previously obtained for testing after all filtering steps were then tested using the FLK model.
+The set of `r comma(nrow(testData)/2)` SNPs previously obtained for testing after all filtering steps were then tested using the FLK model.
 SNPs previously identified as showing a regional effect in the 2012 population were also removed from FLK analysis.
 P-values obtained under FLK were adjusted using Bonferroni's method to obtain a set of high-confidence SNPs, then using Benjamini-Hochberg's FDR to provide a larger set for testing of GO enrichment.
 
