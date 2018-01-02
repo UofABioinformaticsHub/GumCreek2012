@@ -178,6 +178,7 @@ dataForPCA %<>% extract(, apply(., MARGIN = 2, function(x){length(unique(x))}) >
 ## PCA Including The Outgroup Samples
 
 ```{r outgroupPCA}
+set.seed(53)
 outgroupPCA <- dataForPCA %>%
   prcomp(center = TRUE)
 ```
@@ -206,32 +207,31 @@ pcaForPlot <- outgroupPCA$x %>%
   left_join(sampleMetadata, by = c("sampleID" = "ID")) %>%
   mutate(Central = `GPS waypoint` %in% central,
          Population = if_else(Population == "Oraparinna (2012)",
-                              if_else(Central, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population),
-         PCATail = grepl("2012", Population) && PC3 > 3 && PC2 < 0) 
+                              if_else(PC3 < 0 && PC2 > 5, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population))
 ```
 
 ```{r finalPCA, echo = FALSE, fig.cap = "PCA for all samples including the outgroup and indicating the sample collection region for the 2012 samples."}
 p12 <- ggplot(pcaForPlot, aes(PC1, PC2, colour = Population)) +
   geom_point(size = 3) +
   scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.8, 0.7),
-                                 rgb(0.2, 0.2, 0.8, 0.7),
-                                 rgb(0.2, 0.8, 0.2, 0.7))) +
+                                 rgb(0.8, 0.2, 0.2, 0.9),
+                                 rgb(0.2, 0.8, 0.2, 0.9),
+                                 rgb(0.5, 0.5, 1, 0.7))) +
   theme(text = element_text(size = 12))
 p13 <- ggplot(pcaForPlot, aes(PC1, PC3, colour = Population)) +
   geom_point(size = 3) +
   scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.8, 0.7),
-                                 rgb(0.2, 0.2, 0.8, 0.7),
-                                 rgb(0.2, 0.8, 0.2, 0.7))) +
+                                 rgb(0.8, 0.2, 0.2, 0.9),
+                                 rgb(0.2, 0.8, 0.2, 0.9),
+                                 rgb(0.5, 0.5, 1, 0.7))) +
   guides(colour = FALSE) +
   theme(text = element_text(size = 12))
-p23 <- ggplot(pcaForPlot, aes(PC2, PC3, colour = PCATail)) +
+p23 <- ggplot(pcaForPlot, aes(PC2, PC3, colour = Population)) +
   geom_point(size = 3) +
   scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.8, 0.7),
-                                 rgb(0.2, 0.2, 0.8, 0.7),
-                                 rgb(0.2, 0.8, 0.2, 0.7))) +
+                                 rgb(0.8, 0.2, 0.2, 0.9),
+                                 rgb(0.2, 0.8, 0.2, 0.9),
+                                 rgb(0.5, 0.5, 1, 0.7))) +
   guides(colour = FALSE) +
   theme(text = element_text(size = 12))
 vp12 <- viewport(0, 0, 0.71, 0.5, just = c(0, 0))
@@ -248,16 +248,33 @@ print(p23, vp = vp23)
 loc <- c(range(sampleMetadata$Longitude) %>% mean,
          range(sampleMetadata$Latitude) %>% mean)
 ggMap <- get_map(loc, zoom = 12, maptype = "hybrid", source = "google")
-ggmap(ggMap) +
-  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = PCATail))
+map1 <- ggmap(ggMap) +
+  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population)) +
+  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
+                                 rgb(0.8, 0.2, 0.2, 0.9),
+                                 rgb(0.2, 0.8, 0.2, 0.9),
+                                 rgb(0.5, 0.5, 1, 0.7))) +
+  theme_bw() +
+  guides(colour = FALSE)
 ```
 
 ```{r}
 zoomLoc <- c(138.753, -31.242)
-get_map(zoomLoc, zoom = 16, maptype = "hybrid", source = "google") %>%
+map2 <- get_map(zoomLoc, zoom = 15, maptype = "hybrid", source = "google") %>%
   ggmap() +
-  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = PCATail),
-             size = 3)
+  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population),
+             size = 3) +
+  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
+                                 rgb(0.8, 0.2, 0.2, 0.9),
+                                 rgb(0.2, 0.8, 0.2, 0.9),
+                                 rgb(0.5, 0.5, 1, 0.7))) +
+  theme_bw() +
+  guides(colour = FALSE)
+```
+
+```{r, fig.show='hold', fig.width=5, fig.cap="Distribution of all 2012 samples (left), and zoomed in central region (right)."}
+map1
+map2
 ```
 
 

@@ -25,6 +25,8 @@ library(readxl)
 library(magrittr)
 library(VennDiagram)
 library(qqman)
+library(sp)
+library(ggmap)
 ```
 
 
@@ -109,7 +111,7 @@ allelePops <- as.factor(allelePops)
 names(allelePops) <- rownames(minorAlleleCounts)
 ```
 
-In addition, the metadata from sample collection was loaded.
+In addition, the metadata from 2012 sample collection was loaded.
 
 
 ```r
@@ -117,6 +119,18 @@ sampleMetadata <- file.path("..", "data", "Samples_Nov2012_GumCreek.xlsx") %>%
   read_excel(skip = 1) %>%
   mutate(ID = gsub("[Oo][Rr][Aa] ", "ora", ID))
 ```
+
+GPS Locations were added to the metadata.
+
+
+```r
+gpsPoints <-file.path("..", "data", "GPS_Locations.xlsx") %>%
+  read_excel() %>%
+  dplyr::select(ID = Sample, ends_with("tude")) %>%
+  mutate(ID = gsub("[Oo][Rr][Aa] ([0-9ABC]*)", "ora\\1", ID))
+sampleMetadata %<>% left_join(gpsPoints, by = "ID")
+```
+
 
 
 # Principal Component Analysis
@@ -176,13 +190,14 @@ dataForPCA %<>% extract(, apply(., MARGIN = 2, function(x){length(unique(x))}) >
 
 
 ```r
+set.seed(53)
 outgroupPCA <- dataForPCA %>%
   prcomp(center = TRUE)
 ```
 
 The two Gum Creek populations (1996 & 2012) clearly showed differences to the outgroup, however a strong "tail" was noted for some of the 2012 population along PC2.
 
-The samples forming this tail (i.e. PC2 > 5) were identified and the collection region for these samples was investigated, using the `GPS waypoint` value and the map of waypoints.
+The samples forming this tail (i.e. PC3 > 0) were identified and the collection region for these samples was investigated, using the `GPS waypoint` value and the map of waypoints.
 The vast majority were found to come from the central collection region, and this collection region was added to the PCA plot.
 
 
@@ -206,10 +221,49 @@ pcaForPlot <- outgroupPCA$x %>%
   left_join(sampleMetadata, by = c("sampleID" = "ID")) %>%
   mutate(Central = `GPS waypoint` %in% central,
          Population = if_else(Population == "Oraparinna (2012)",
-                              if_else(Central, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population)) 
+                              if_else(PC3 < 0 && PC2 > 5, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population))
 ```
 
 ![PCA for all samples including the outgroup and indicating the sample collection region for the 2012 samples.](03_snpAnalysis_files/figure-html/finalPCA-1.png)
+
+
+
+```r
+loc <- c(range(sampleMetadata$Longitude) %>% mean,
+         range(sampleMetadata$Latitude) %>% mean)
+ggMap <- get_map(loc, zoom = 12, maptype = "hybrid", source = "google")
+map1 <- ggmap(ggMap) +
+  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population)) +
+  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
+                                 rgb(0.8, 0.2, 0.2, 0.9),
+                                 rgb(0.2, 0.8, 0.2, 0.9),
+                                 rgb(0.5, 0.5, 1, 0.7))) +
+  theme_bw() +
+  guides(colour = FALSE)
+```
+
+
+```r
+zoomLoc <- c(138.753, -31.242)
+map2 <- get_map(zoomLoc, zoom = 15, maptype = "hybrid", source = "google") %>%
+  ggmap() +
+  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population),
+             size = 3) +
+  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
+                                 rgb(0.8, 0.2, 0.2, 0.9),
+                                 rgb(0.2, 0.8, 0.2, 0.9),
+                                 rgb(0.5, 0.5, 1, 0.7))) +
+  theme_bw() +
+  guides(colour = FALSE)
+```
+
+
+```r
+map1
+map2
+```
+
+![Distribution of all 2012 samples (left), and zoomed in central region (right).](03_snpAnalysis_files/figure-html/unnamed-chunk-4-1.png)![Distribution of all 2012 samples (left), and zoomed in central region (right).](03_snpAnalysis_files/figure-html/unnamed-chunk-4-2.png)
 
 
 # Analysis
@@ -532,8 +586,8 @@ _LC_CTYPE=en_AU.UTF-8_, _LC_NUMERIC=C_, _LC_TIME=en_AU.UTF-8_, _LC_COLLATE=en_AU
 _grid_, _parallel_, _stats_, _graphics_, _grDevices_, _utils_, _datasets_, _methods_ and _base_
 
 **other attached packages:** 
-_bindrcpp(v.0.2)_, _qqman(v.0.1.4)_, _VennDiagram(v.1.6.18)_, _futile.logger(v.1.4.3)_, _magrittr(v.1.5)_, _readxl(v.1.0.0)_, _reshape2(v.1.4.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
+_bindrcpp(v.0.2)_, _ggmap(v.2.6.1)_, _sp(v.1.2-5)_, _qqman(v.0.1.4)_, _VennDiagram(v.1.6.18)_, _futile.logger(v.1.4.3)_, _magrittr(v.1.5)_, _readxl(v.1.0.0)_, _reshape2(v.1.4.3)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
 
 **loaded via a namespace (and not attached):** 
-_haven(v.1.1.0)_, _lattice(v.0.20-35)_, _colorspace(v.1.3-2)_, _htmltools(v.0.3.6)_, _yaml(v.2.1.15)_, _rlang(v.0.1.4)_, _foreign(v.0.8-69)_, _glue(v.1.2.0)_, _calibrate(v.1.7.2)_, _modelr(v.0.1.1)_, _lambda.r(v.1.2)_, _bindr(v.0.1)_, _plyr(v.1.8.4)_, _munsell(v.0.4.3)_, _gtable(v.0.2.0)_, _cellranger(v.1.1.0)_, _rvest(v.0.3.2)_, _psych(v.1.7.8)_, _evaluate(v.0.10.1)_, _labeling(v.0.3)_, _knitr(v.1.17)_, _highr(v.0.6)_, _broom(v.0.4.3)_, _Rcpp(v.0.12.14)_, _backports(v.1.1.1)_, _jsonlite(v.1.5)_, _mnormt(v.1.5-5)_, _hms(v.0.4.0)_, _digest(v.0.6.12)_, _stringi(v.1.1.6)_, _rprojroot(v.1.2)_, _cli(v.1.0.0)_, _tools(v.3.4.3)_, _lazyeval(v.0.2.1)_, _futile.options(v.1.0.0)_, _crayon(v.1.3.4)_, _pkgconfig(v.2.0.1)_, _xml2(v.1.1.1)_, _lubridate(v.1.7.1)_, _assertthat(v.0.2.0)_, _rmarkdown(v.1.8)_, _httr(v.1.3.1)_, _rstudioapi(v.0.7)_, _R6(v.2.2.2)_, _nlme(v.3.1-131)_ and _compiler(v.3.4.3)_
+_Rcpp(v.0.12.14)_, _lubridate(v.1.7.1)_, _lattice(v.0.20-35)_, _png(v.0.1-7)_, _assertthat(v.0.2.0)_, _rprojroot(v.1.2)_, _digest(v.0.6.12)_, _psych(v.1.7.8)_, _R6(v.2.2.2)_, _cellranger(v.1.1.0)_, _plyr(v.1.8.4)_, _futile.options(v.1.0.0)_, _backports(v.1.1.1)_, _evaluate(v.0.10.1)_, _httr(v.1.3.1)_, _highr(v.0.6)_, _RgoogleMaps(v.1.4.1)_, _rlang(v.0.1.4)_, _lazyeval(v.0.2.1)_, _rstudioapi(v.0.7)_, _geosphere(v.1.5-7)_, _rmarkdown(v.1.8)_, _proto(v.1.0.0)_, _labeling(v.0.3)_, _foreign(v.0.8-69)_, _munsell(v.0.4.3)_, _broom(v.0.4.3)_, _compiler(v.3.4.3)_, _modelr(v.0.1.1)_, _pkgconfig(v.2.0.1)_, _mnormt(v.1.5-5)_, _htmltools(v.0.3.6)_, _calibrate(v.1.7.2)_, _crayon(v.1.3.4)_, _nlme(v.3.1-131)_, _jsonlite(v.1.5)_, _gtable(v.0.2.0)_, _cli(v.1.0.0)_, _stringi(v.1.1.6)_, _mapproj(v.1.2-5)_, _xml2(v.1.1.1)_, _rjson(v.0.2.15)_, _lambda.r(v.1.2)_, _tools(v.3.4.3)_, _glue(v.1.2.0)_, _maps(v.3.2.0)_, _hms(v.0.4.0)_, _jpeg(v.0.1-8)_, _yaml(v.2.1.15)_, _colorspace(v.1.3-2)_, _rvest(v.0.3.2)_, _knitr(v.1.17)_, _bindr(v.0.1)_ and _haven(v.1.1.0)_
 
