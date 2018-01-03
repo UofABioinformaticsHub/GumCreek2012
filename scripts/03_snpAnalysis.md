@@ -224,6 +224,52 @@ pcaForPlot <- outgroupPCA$x %>%
 
 ![Zoomed-in view of the central region for 2012 samples with colours showing sub-populations defined by PCA analysis.](03_snpAnalysis_files/figure-html/map2-1.png)
 
+# Phylogenetic Analysis
+
+## Data Export For Generation of Phylogenies
+
+The SNP information for the original 20336 alleles was then exported for phylogenetic analysis.
+The same subset of 135 samples was used for this analysis as was used for the PCA analysis above.
+
+
+```r
+alleles <- allData %>%
+  dplyr::select(snpID, contains("Nuc")) %>%
+  distinct(snpID, .keep_all = TRUE) %>%
+  rowwise() %>%
+  mutate(AA = paste0(`P Nuc`, `P Nuc`),
+         AB = paste0(`P Nuc`, `Q Nuc`),
+         BB = paste0(`Q Nuc`, `Q Nuc`)) %>%
+  ungroup %>%
+  dplyr::select(snpID, AA, AB, BB) %>%
+  as.data.frame() %>%
+  column_to_rownames("snpID") %>%
+  as.matrix()
+```
+
+
+```r
+gzOut <- file.path("..", "data", "snpForPhylo.tsv.gz") %>% gzfile("w")
+colnames(minorAlleleCounts) %>% 
+  vapply(function(x){
+    alleles[x,  minorAlleleCounts[,x] + 1]
+    }, character(nrow(minorAlleleCounts))) %>%
+  as_data_frame() %>%
+  mutate(sampleID = rownames(minorAlleleCounts)) %>%
+  filter(sampleID %in% pcaForPlot$sampleID) %>%
+  mutate(Population = gsub("gc.+", "Gum Creek (1996)", sampleID),
+         Population = gsub("(TF|Y|pt|tf).+", "Turretfield (2010)", Population),
+         Population = ifelse(sampleID %in% filter(pcaForPlot, grepl("Central", Population))$sampleID,
+                             "Oraparinna Central (2012)", Population),
+         Population = gsub("ora.+", "Oraparinna Outer (2012)", Population),
+         colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
+         colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
+         colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
+         colour = ifelse(grepl("Outer", Population), rgb(0.2, 0.8, 0.2, 0.9), colour)) %>%
+  dplyr::select(sampleID, Population, colour, everything()) %>%
+  write_tsv(gzOut)
+close(gzOut)
+```
 
 
 # Analysis
@@ -419,6 +465,40 @@ flkResults <- file.path("..", "results", "flkResults.tsv") %>%
   read_tsv()
 ```
 
+## Bayescan Analysis
+
+
+```r
+snpsForBayescan <- file.path("..", "data", "filteredSNPs.genepop.gz") %>%
+  gzfile() %>%
+  readLines(n = 2) %>%
+  extract2(2) %>%
+  strsplit(",") %>%
+  extract2(1)
+```
+
+The analysis tool Bayescan was also run on the set of 20,336 SNPs exported as a `genepop` file after the previous filtering steps.
+The program was run using an FDR of 0.05 with an additional run setting the FDR to 0.1.
+Any SNPs detected above as tracking with the internal structure of the 2012 population were discarded from the results.
+
+
+```r
+bayes05 <- file.path("..", "results", "BayOut_FDR5.csv") %>%
+  read_csv() %>%
+  mutate(snpID = snpsForBayescan[SNP]) %>%
+  dplyr::select(snpID, everything(), -SNP) %>%
+  filter(!snpID %in% regionSNPs)
+```
+
+
+
+```r
+bayes10 <- file.path("..", "results", "BayOut_FDR10.csv") %>%
+  read_csv() %>%
+  mutate(snpID = snpsForBayescan[SNP])%>%
+  dplyr::select(snpID, everything(), -SNP) %>%
+  filter(!snpID %in% regionSNPs)
+```
 
 ## Comparison of Results
 
@@ -427,20 +507,24 @@ flkResults <- file.path("..", "results", "flkResults.tsv") %>%
 fdr <- c(genotype = 0.1, allele = 0.05, flk = 0.05)
 sigSNPs <- c(filter(genotypeResults,FDR < fdr["genotype"])$snpID,
              filter(alleleResults, FDR < fdr["allele"])$snpID,
-             filter(flkResults, FDR < fdr["flk"])$snpID) %>%
+             filter(flkResults, FDR < fdr["flk"])$snpID,
+             bayes10$snpID) %>%
   unique %>%
   as.data.frame() %>%
   set_names("snpID") %>%
   mutate(genotype = snpID %in% filter(genotypeResults,FDR < fdr["genotype"])$snpID,
          allele = snpID %in% filter(alleleResults,FDR < fdr["allele"])$snpID,
-         flk = snpID %in% filter(flkResults, FDR < fdr["flk"])$snpID)
+         flk = snpID %in% filter(flkResults, FDR < fdr["flk"])$snpID,
+         bayes = snpID %in% bayes10$snpID)
 ```
 
-It was noted when comparing results from FLK and analysis by allele frequency alone that all SNPs from the allele frequency analysis were detected by either FLK or the genotpe analysis.
+- It was noted when comparing results from FLK and analysis by allele frequency alone that all SNPs from the allele frequency analysis were detected by either FLK or the genotpe analysis.
 As such this analysis was disregarded going forward.
+- Similarly, no novel SNPs were detected by Bayescan, and all in the list down to an FDR of 0.1 were included in either the analysis using FLK or the full genotypes.
+As such, the Bayescan analysis was also disregarded going forward.
 
 
-![Overlap between the lists of SNPs considered as associated with the different populations under either of the two analytic approaches, using an FDR of 0.1.](03_snpAnalysis_files/figure-html/vennSNPs-1.png)
+![Overlap between the lists of SNPs considered as associated with the different populations under either of the two analytic approaches, using an FDR of 0.1 for 'Analysis by Genotype' and Bayescan, with an FDR of 0.5 for 'Analysis by Allele' and FLK.](03_snpAnalysis_files/figure-html/vennSNPs-1.png)
 
 ### SNPs Associated With Populations Under Both Approaches
 
@@ -460,11 +544,10 @@ The list of SNPs detected as associated with the population structure under both
 | 204810_79 | GL018802 |     439,482 |            -1.836 | 0.9583 | 0.7857 |  0.0001362 | 6.111e-06 |
 | 233206_29 | GL018881 |      88,327 |             1.466 | 0.5357 | 0.8333 |  9.849e-05 | 3.363e-05 |
 
-Table: Summary of changes in the major (P) allele between the two timepoints. Changes in the log Odds ratio of observing the major allele are given, along with estimated population frequencies. Results from testing by genotype or FLK are given as raw p-values. All SNPs were considered as differentially associated with the two populations under both analyses to an FDR of 10\%. (genotype) or 5\% (FLK)
+Table: Summary of changes in the major (P) allele between the two timepoints. Changes in the log Odds ratio of observing the major allele are given, along with estimated population frequencies. Results from testing by genotype or FLK are given as raw p-values. All SNPs were considered as differentially associated with the two populations under both analyses to an FDR of 10\% (genotype) or 5\% (FLK)
 
 
 ![Estimated genotype frequencies for SNPs found to be significant under both models. In each case the `A` allele represents the major allele in the 1996 population.](03_snpAnalysis_files/figure-html/genotypesBothModels-1.png)
-
 
 
 ### SNPs Associated With Populations Under Analysis Using FLK Only
@@ -575,7 +658,7 @@ _LC_CTYPE=en_AU.UTF-8_, _LC_NUMERIC=C_, _LC_TIME=en_AU.UTF-8_, _LC_COLLATE=en_AU
 _grid_, _parallel_, _stats_, _graphics_, _grDevices_, _utils_, _datasets_, _methods_ and _base_
 
 **other attached packages:** 
-_bindrcpp(v.0.2)_, _ggmap(v.2.6.1)_, _sp(v.1.2-5)_, _qqman(v.0.1.4)_, _VennDiagram(v.1.6.18)_, _futile.logger(v.1.4.3)_, _magrittr(v.1.5)_, _readxl(v.1.0.0)_, _reshape2(v.1.4.3)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
+_bindrcpp(v.0.2)_, _ggmap(v.2.6.1)_, _sp(v.1.2-5)_, _qqman(v.0.1.4)_, _VennDiagram(v.1.6.18)_, _futile.logger(v.1.4.3)_, _magrittr(v.1.5)_, _readxl(v.1.0.0)_, _reshape2(v.1.4.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
 
 **loaded via a namespace (and not attached):** 
 _Rcpp(v.0.12.14)_, _lubridate(v.1.7.1)_, _lattice(v.0.20-35)_, _png(v.0.1-7)_, _assertthat(v.0.2.0)_, _rprojroot(v.1.2)_, _digest(v.0.6.12)_, _psych(v.1.7.8)_, _R6(v.2.2.2)_, _cellranger(v.1.1.0)_, _plyr(v.1.8.4)_, _futile.options(v.1.0.0)_, _backports(v.1.1.1)_, _evaluate(v.0.10.1)_, _httr(v.1.3.1)_, _highr(v.0.6)_, _RgoogleMaps(v.1.4.1)_, _rlang(v.0.1.4)_, _lazyeval(v.0.2.1)_, _rstudioapi(v.0.7)_, _geosphere(v.1.5-7)_, _rmarkdown(v.1.8)_, _proto(v.1.0.0)_, _labeling(v.0.3)_, _foreign(v.0.8-69)_, _munsell(v.0.4.3)_, _broom(v.0.4.3)_, _compiler(v.3.4.3)_, _modelr(v.0.1.1)_, _pkgconfig(v.2.0.1)_, _mnormt(v.1.5-5)_, _htmltools(v.0.3.6)_, _calibrate(v.1.7.2)_, _crayon(v.1.3.4)_, _nlme(v.3.1-131)_, _jsonlite(v.1.5)_, _gtable(v.0.2.0)_, _cli(v.1.0.0)_, _stringi(v.1.1.6)_, _mapproj(v.1.2-5)_, _xml2(v.1.1.1)_, _rjson(v.0.2.15)_, _lambda.r(v.1.2)_, _tools(v.3.4.3)_, _glue(v.1.2.0)_, _maps(v.3.2.0)_, _hms(v.0.4.0)_, _jpeg(v.0.1-8)_, _yaml(v.2.1.15)_, _colorspace(v.1.3-2)_, _rvest(v.0.3.2)_, _knitr(v.1.17)_, _bindr(v.0.1)_ and _haven(v.1.1.0)_
