@@ -1,7 +1,7 @@
 ---
 title: "SNP Analysis"
 author: "Steve Pederson"
-date: "24th September 2017"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document: 
     fig_caption: yes
@@ -25,7 +25,8 @@ library(scales)
 library(reshape2)
 library(readxl)
 library(magrittr)
-library(VennDiagram)
+library(UpSetR)
+library(grid)
 library(qqman)
 library(sp)
 library(ggmap)
@@ -190,6 +191,7 @@ The vast majority were found to come from the central collection region, and thi
 
 
 ```{r pcaForPlot}
+set.seed(143)
 pcaForPlot <- outgroupPCA$x %>%
   as.data.frame() %>%
   rownames_to_column("sampleID") %>%
@@ -200,8 +202,18 @@ pcaForPlot <- outgroupPCA$x %>%
   mutate(Population = if_else(Population == "gc", "Gum Creek (1996)",
                               if_else(Population == "ora", "Oraparinna (2012)", "Turretfield (2010)"))) %>%
   left_join(sampleMetadata, by = c("sampleID" = "ID")) %>%
-  mutate(Population = if_else(Population == "Oraparinna (2012)",
-                              if_else(PC3 < 0 && PC2 > 5, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population))
+  ungroup() %>%
+  mutate(Cluster = kmeans(cbind(PC1, PC2, PC3), 3)$cluster)
+getRegions <- pcaForPlot %>% 
+  filter(grepl("2012", Population)) %>% 
+  droplevels() %>% 
+  group_by(Cluster) %>% 
+  summarise(maxY = max(Latitude)) %>%
+  mutate(Region = c("Central", "Outer")[(maxY == max(maxY)) + 1])
+pcaForPlot %<>% 
+  left_join(getRegions) %>%
+  mutate(Population = ifelse(grepl("Oraparinna", Population), 
+                             paste("Oraparinna", Region, "(2012)"), Population))
 ```
 
 ```{r finalPCA, echo = FALSE, fig.cap = "PCA for all samples including the outgroup and indicating the sample collection region for the 2012 samples."}
@@ -218,16 +230,16 @@ p13 <- ggplot(pcaForPlot, aes(PC1, PC3, colour = Population)) +
                                  rgb(0.8, 0.2, 0.2, 0.9),
                                  rgb(0.2, 0.8, 0.2, 0.9),
                                  rgb(0.5, 0.5, 1, 0.7))) +
-  guides(colour = FALSE) +
-  theme(text = element_text(size = 12))
+  theme(text = element_text(size = 12),
+        legend.position = "none")
 p23 <- ggplot(pcaForPlot, aes(PC2, PC3, colour = Population)) +
   geom_point(size = 3) +
   scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
                                  rgb(0.8, 0.2, 0.2, 0.9),
                                  rgb(0.2, 0.8, 0.2, 0.9),
                                  rgb(0.5, 0.5, 1, 0.7))) +
-  guides(colour = FALSE) +
-  theme(text = element_text(size = 12))
+  theme(text = element_text(size = 12),
+        legend.position = "none")
 vp12 <- viewport(0, 0, 0.71, 0.5, just = c(0, 0))
 vp13 <- viewport(0, 0.5, 0.5, 0.5, just = c(0, 0))
 vp23 <- viewport(0.5, 0.5, 0.5, 0.5, just = c(0, 0))
@@ -438,8 +450,8 @@ genotypeResults %>%
   filter(p < 1e-04) %>%
   left_join(allData) %>%
   distinct(snpID, .keep_all = TRUE) %>%
-  dplyr::select(Chr, BP, snpID, p, FDR) %>%
-  pander(justify = "rrlrr",
+  dplyr::select(snpID, Chr, BP, p, FDR) %>%
+  pander(justify = "lrrrr",
          style = "rmarkdown",
          big.mark = ",",
          caption = "SNPs with raw p-values < 1e-04 when analysing by genotype. All SNPs were considered significant using an FDR < 0.1")
@@ -493,8 +505,8 @@ alleleResults %>%
   filter(FDR < alpha) %>%
   left_join(allData) %>%
   distinct(snpID, .keep_all = TRUE) %>%
-  dplyr::select(Chr, BP, snpID, p, adjP, FDR) %>%
-  pander(justify = "rrlrrr",
+  dplyr::select(snpID, Chr, BP, p, adjP, FDR) %>%
+  pander(justify = "lrrrrr",
          big.mark = ",",
          style = "rmarkdown",
          caption = paste("SNPs considered as significant when analysing by genotype using an FDR cutoff of", alpha))
@@ -520,7 +532,12 @@ alleleResults %>%
 The FLK analysis performed separately was also included in order to compare the differing approaches.
 It should be noted that this analytic approach is very closely related to analysis by allele frequency, however, instead of Fisher's Exact Test a Chi-squared model is utilised incorporating genetic distances to ccount for genetics drift.
 
-```{r}
+```{r runFLK, results='hide'}
+rmarkdown::render("S1_FLK.Rmd")
+```
+
+
+```{r loadFlkResults}
 flkResults <- file.path("..", "results", "flkResults.tsv") %>%
   read_tsv()
 ```
@@ -537,17 +554,8 @@ snpsForBayescan <- file.path("..", "data", "filteredSNPs.genepop.gz") %>%
 ```
 
 The analysis tool Bayescan was also run on the set of `r comma(length(snpsForBayescan))` SNPs exported as a `genepop` file after the previous filtering steps.
-The program was run using an FDR of 0.05 with an additional run setting the FDR to 0.1.
+The program was run setting the FDR to 0.1.
 Any SNPs detected above as tracking with the internal structure of the 2012 population were discarded from the results.
-
-```{r bayes05}
-bayes05 <- file.path("..", "results", "BayOut_FDR5.csv") %>%
-  read_csv() %>%
-  mutate(snpID = snpsForBayescan[SNP]) %>%
-  dplyr::select(snpID, everything(), -SNP) %>%
-  filter(!snpID %in% regionSNPs)
-```
-
 
 ```{r bayes10}
 bayes10 <- file.path("..", "results", "BayOut_FDR10.csv") %>%
@@ -571,36 +579,18 @@ sigSNPs <- c(filter(genotypeResults,FDR < fdr["genotype"])$snpID,
   mutate(genotype = snpID %in% filter(genotypeResults,FDR < fdr["genotype"])$snpID,
          allele = snpID %in% filter(alleleResults,FDR < fdr["allele"])$snpID,
          flk = snpID %in% filter(flkResults, FDR < fdr["flk"])$snpID,
-         bayes = snpID %in% bayes10$snpID)
+         bayescan = snpID %in% bayes10$snpID)
 ```
 
-- It was noted when comparing results from FLK and analysis by allele frequency alone that all SNPs from the allele frequency analysis were detected by either FLK or the genotpe analysis.
-As such this analysis was disregarded going forward.
-- Similarly, no novel SNPs were detected by Bayescan, and all in the list down to an FDR of 0.1 were included in either the analysis using FLK or the full genotypes.
-As such, the Bayescan analysis was also disregarded going forward.
+No novel SNPs were detected by Bayescan or by allele frequency down to an FDR of 0.1 or 0.05 respectively.
+As such, the Bayescan & allele frequency analyses were disregarded going forward.
 
-
-```{r vennSNPs, echo = FALSE, fig.cap="Overlap between the lists of SNPs considered as associated with the different populations under either of the two analytic approaches, using an FDR of 0.1 for 'Analysis by Genotype' and Bayescan, with an FDR of 0.5 for 'Analysis by Allele' and FLK.", fig.width=6, fig.height=5, results='hide', fig.show='asis'}
-grid.newpage()
-draw.quad.venn(
-  area1 = sum(sigSNPs$genotype),
-  area2 = sum(sigSNPs$allele),
-  area3 = sum(sigSNPs$flk),
-  area4 = sum(sigSNPs$bayes),
-  n12 = filter(sigSNPs, genotype, allele) %>% nrow(),
-  n13 = filter(sigSNPs, genotype, flk) %>% nrow(),
-  n14 = filter(sigSNPs, genotype, bayes) %>% nrow(),
-  n23 = filter(sigSNPs, allele, flk) %>% nrow(),
-  n24 = filter(sigSNPs, allele, bayes) %>% nrow(),
-  n34 = filter(sigSNPs, flk, bayes) %>% nrow(),
-  n123 = filter(sigSNPs, genotype, allele, flk) %>% nrow(),
-  n124 = filter(sigSNPs, genotype, allele, bayes) %>% nrow(),
-  n134 = filter(sigSNPs, genotype, flk, bayes) %>% nrow(),
-  n234 = filter(sigSNPs, allele, flk, bayes) %>% nrow(),
-  n1234 = filter(sigSNPs, genotype, allele, flk, bayes) %>% nrow(),
-  category = c("Analysis by\nGenotype", "Analysis by\nAllele","FLK", "Bayescan"), 
-  scaled = FALSE
-  )
+```{r upSetSNPs, echo = FALSE, fig.cap="Overlap between the lists of SNPs considered as associated with the different populations under either of the two analytic approaches, using an FDR of 0.1 for 'Analysis by Genotype' and Bayescan, with an FDR of 0.05 for 'Analysis by Allele' and FLK.", fig.width=6, fig.height=5, results='hide', fig.show='asis'}
+sigSNPs %>% 
+  dplyr::select(-snpID) %>% 
+  lapply(which) %>% 
+  fromList() %>% 
+  upset()
 ```
 
 ### SNPs Associated With Populations Under Both Approaches
@@ -612,6 +602,8 @@ sigSNPs %>%
   filter(genotype, flk) %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
+  filter(`Pop ID` %in% c(1,2)) %>%
+  droplevels() %>%
   mutate(SNP = paste(`P Nuc`, `Q Nuc`, sep = "/"),
          Population = popSizes$Population[`Pop ID`]) %>%
   arrange(Chr, BP, Population) %>%
@@ -627,9 +619,9 @@ sigSNPs %>%
   dplyr::select(Chr, BP, snpID, `Change in log(OR)`, P_1996 = `1996`, P_2012 = `2012`, Genotype_p = p) %>%
   left_join(flkResults) %>%
   dplyr::select(snpID, Chr, BP, `Change in log(OR)`, P_1996, P_2012, Genotype_p, FLK_p = F.LK.p.val) %>%
+  mutate(BP = comma(BP)) %>%
   pander(justify = "llrrrrrr",
          style = "rmarkdown",
-         big.mark = ",",
          split.table = Inf,
          caption = paste("Summary of changes in the major (P) allele between the two timepoints.",
                          "Changes in the log Odds ratio of observing the major allele are given,",
@@ -639,12 +631,14 @@ sigSNPs %>%
 ```
 
 
-```{r genotypesBothModels, echo = FALSE,fig.cap = "Estimated genotype frequencies for SNPs found to be significant under both models. In each case the `A` allele represents the major allele in the 1996 population.", fig.width=9, fig.height=7}
+```{r genotypesBothModels, echo = FALSE,fig.cap = "Estimated genotype frequencies for SNPs found to be significant under both models. In each case the `A` allele represents the major allele in the 1996 population.", fig.width=9, fig.height=6}
 sigSNPs %>%
   filter(genotype, flk) %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
   left_join(allCounts) %>%
+  filter(`Pop ID` %in% c(1,2)) %>%
+  droplevels() %>%
   dplyr::select(snpID, Chr, BP, `Pop ID`, AA, AB, BB) %>%
   left_join(popSizes) %>%
   melt(id.vars = c("snpID", "Chr", "BP", "Pop ID", "Population", "Description", "N"),
@@ -667,6 +661,8 @@ sigSNPs %>%
   filter(!genotype, flk) %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
+  filter(`Pop ID` %in% c(1,2)) %>%
+  droplevels() %>%
   mutate(SNP = paste(`P Nuc`, `Q Nuc`, sep = "/"),
          Population = popSizes$Population[`Pop ID`]) %>%
   arrange(Chr, BP, Population) %>%
@@ -680,9 +676,9 @@ sigSNPs %>%
   arrange(Chr, BP) %>%
   left_join(flkResults) %>%
   dplyr::select(Chr, BP, snpID, `Change in log(OR)`, P_1996 = `1996`, P_2012 = `2012`, FLK_p = F.LK.p.val) %>%
+  mutate(BP = comma(BP)) %>%
   pander(justify = "llrrrrr",
          style = "rmarkdown",
-         big.mark = ",",         
          split.table = Inf,
          caption = paste("Summary of changes in the major (P) allele between the two timepoints.",
                          "Changes in the log Odds ratio of observing the major allele are given,",
@@ -697,6 +693,8 @@ sigSNPs %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
   left_join(allCounts) %>%
+  filter(`Pop ID` %in% c(1,2)) %>%
+  droplevels() %>%  
   dplyr::select(snpID, Chr, BP, `Pop ID`, A, B) %>%
   mutate(A = A / (A + B),
          B = 1 - A) %>%
@@ -720,6 +718,8 @@ sigSNPs %>%
   filter(genotype, !flk) %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
+  filter(`Pop ID` %in% c(1,2)) %>%
+  droplevels() %>%  
   mutate(SNP = paste(`P Nuc`, `Q Nuc`, sep = "/"),
          Population = popSizes$Population[`Pop ID`]) %>%
   arrange(Chr, BP, Population) %>%
@@ -733,9 +733,9 @@ sigSNPs %>%
   arrange(Chr, BP) %>%
   left_join(genotypeResults) %>%
   dplyr::select(Chr, BP, snpID, `Change in log(OR)`, P_1996 = `1996`, P_2012 = `2012`, Genotype_p = p) %>%
+  mutate(BP = comma(BP)) %>%
   pander(justify = "llrrrrr",
          style = "rmarkdown",
-         big.mark = ",",         
          split.table = Inf,
          caption = paste("Summary of changes in heterozygosity between the two timepoints.",
                          "Changes in the log Odds ratio of observing heterozygotes are given,",
@@ -751,6 +751,8 @@ sigSNPs %>%
   dplyr::select(snpID) %>%
   left_join(allData) %>%
   left_join(allCounts) %>%
+  filter(`Pop ID` %in% c(1,2)) %>%
+  droplevels() %>%  
   dplyr::select(snpID, Chr, BP, `Pop ID`, AA, AB, BB) %>%
   left_join(popSizes) %>%
   melt(id.vars = c("snpID", "Chr", "BP", "Pop ID", "Population", "Description", "N"),
@@ -769,14 +771,12 @@ sigSNPs %>%
 
 Both sets of results were output as `genotypeResults.tsv` and `alleleResults.tsv`
 
-```{r}
+```{r export}
 alleleResults %>% 
   left_join(allData) %>% 
   distinct(snpID, .keep_all = TRUE) %>% 
   dplyr::select(snpID, Chr, BP, p, adjP, FDR) %>%
   write_tsv(file.path("..", "results", "alleleResults.tsv"))
-```
-```{r}
 genotypeResults %>% 
   left_join(allData) %>% 
   distinct(snpID, .keep_all = TRUE) %>% 

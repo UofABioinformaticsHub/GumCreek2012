@@ -12,12 +12,12 @@ output:
     toc_depth: 2
 ---
 
-```{r setup, include=FALSE}
+```{r setupFLK, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,
                       message = FALSE, warning = FALSE)
 ```
 
-```{r}
+```{r loadPackagesFLK}
 library(tidyverse)
 library(magrittr)
 library(rtracklayer)
@@ -29,7 +29,7 @@ library(scales)
 library(stringr)
 ```
 
-```{r}
+```{r setParamsFLK}
 nCores <- min(12, detectCores() - 1)
 ```
 
@@ -48,7 +48,7 @@ A third population was included as an outlier group, representing a population s
 
 Whilst aligned to the RefSeq/NCBI genome build, for compatibility with Ensembl gene models, a mapping object was generated from the [RefSeq Assembly Report](ftp://ftp.ncbi.nih.gov/genomes/refseq/vertebrate_mammalian/Oryctolagus_cuniculus/latest_assembly_versions/GCF_000003625.3_OryCun2.0/GCF_000003625.3_OryCun2.0_assembly_report.txt)
 
-```{r}
+```{r ncbi}
 ncbiReport <- file.path("..", "data", "GCF_000003625.3_OryCun2.0_assembly_report.txt") %>%
   read_delim(delim = "\t", col_names = FALSE, na = "na", comment = "#") %>%
   set_colnames(c("Sequence-Name", "Sequence-Role", "Assigned-Molecule", "Assigned-Molecule-Location/Type", "GenBank-Accn", "Relationship", "RefSeq-Accn", "Assembly-Unit", "Sequence-Length", "UCSC-style-name")) %>%
@@ -63,7 +63,7 @@ ncbi2Ens <- with(ncbiReport, data.frame(Chr = Ensembl,
 
 Gene information was obtained from Ensembl Build 84 and loaded 
 
-```{r}
+```{r ensGff}
 ensGff <- file.path("..", "data", "Oryctolagus_cuniculus.OryCun2.0.84.gff3.gz")
 ensGenes <- import.gff3(ensGff, feature.type = "gene", sequenceRegionsAsSeqinfo = TRUE) 
 ```
@@ -73,7 +73,7 @@ ensGenes <- import.gff3(ensGff, feature.type = "gene", sequenceRegionsAsSeqinfo 
 
 The same stacks output as in [2_snpFiltering](2_snpFiltering.md) was loaded, retaining data from the third population (Turretfield).
 
-```{r}
+```{r allDataFLK}
 allData <- file.path("..", "data", "batch_3.sumstats.tsv.gz") %>%
   gzfile() %>%
   read_delim(delim = "\t", col_names = TRUE, skip = 3) %>%
@@ -89,7 +89,7 @@ allData <- file.path("..", "data", "batch_3.sumstats.tsv.gz") %>%
                 contains("Obs"), contains("Exp"), Private)
 ```
 
-```{r}
+```{r allSnpsGR}
 allSnpsGR <- allData %>%
   distinct(snpID, .keep_all = TRUE) %>%
   makeGRangesFromDataFrame(ignore.strand = TRUE,
@@ -107,14 +107,14 @@ mcols(allSnpsGR) <- DataFrame(snpID = allSnpsGR$snpID)
 
 The script `FLK.R` was obtained from the [QGSP]( https://qgsp.jouy.inra.fr/archives/FLK/FLK.R) and loaded into `R`
 
-```{r}
+```{r loadFLK}
 source("FLK.R")
 ```
 
 
 ## Define Neutral Loci
 
-```{r}
+```{r hitsIn100kb}
 hitsIn100kb <- findOverlaps(
   allSnpsGR %>%
     resize(width = 200001,fix = "center") %>%
@@ -123,14 +123,14 @@ hitsIn100kb <- findOverlaps(
     )
 ```
 
-```{r}
+```{r neutLoci}
 neutLoci <- allSnpsGR %>%
   extract(setdiff(seq_along(.), queryHits(hitsIn100kb))) %>%
   mcols() %>%
   extract2("snpID")
 ```
 
-```{r}
+```{r neutData}
 neutData <- allData %>%
   filter(snpID %in% neutLoci) %>%
   distinct(Chr, BP, `Pop ID`, .keep_all = TRUE)
@@ -142,7 +142,7 @@ After removal of duplicate loci, this gave a set of `r comma(nrow(neutData)/3)` 
 
 Neutral SNPs were again checked to ensure that the `P` allele was the same as used in the 1996 population.
 
-```{r}
+```{r neutData2}
 neutData <- neutData %>%
   split(f = .$snpID) %>%
   mclapply(function(x){
@@ -158,7 +158,7 @@ neutData <- neutData %>%
   arrange(Chr, BP, `Pop ID`)
 ```
 
-```{r}
+```{r N}
 N <- allData %>% 
   group_by(`Pop ID`) %>% 
   summarise(maxN = max(N)) %>%
@@ -167,7 +167,7 @@ N <- allData %>%
 
 The list of Neutral SNPs were then restricted to those identified in >95% of individuals within all populations.
 
-```{r}
+```{r neutMatrix}
 neutMatrix <- neutData %>%
   left_join(N) %>%
   group_by(snpID) %>%
@@ -181,12 +181,11 @@ neutMatrix <- neutData %>%
 ```
 
 
-
 ## Co-ancestry Matrix (F_ij)
 
 The above gave a final list of `r ncol(neutMatrix)` neutral SNPs for estimation of Reynolds Distance as the first step towards calculating the co-ancestry matrix $\mathcal{F}_{ij}$.
 
-```{r}
+```{r reynDist}
 reynDist <- reynolds(neutMatrix)
 ```
 
@@ -198,7 +197,7 @@ reynDist %>%
 ```
 
 
-```{r}
+```{r F_ij}
 F_ij <- Fij(neutMatrix, "Turretfield (2010)", reynDist)
 ```
 
@@ -208,7 +207,7 @@ plot(root(nj(reynDist), "Turretfield (2010)"))
 
 ## FLK Results
 
-```{r}
+```{r testDataFLK}
 regionSnps <- file.path("..", "results", "regionSNPs.txt") %>% readLines()
 testData <-  file.path("..", "data", "filteredSNPs.tsv.gz") %>%
   gzfile() %>%
@@ -220,7 +219,7 @@ The set of `r comma(nrow(testData)/2)` SNPs previously obtained for testing afte
 SNPs previously identified as showing a regional effect in the 2012 population were also removed from FLK analysis.
 P-values obtained under FLK were adjusted using Bonferroni's method to obtain a set of high-confidence SNPs, then using Benjamini-Hochberg's FDR to provide a larger set for testing of GO enrichment.
 
-```{r}
+```{r flkResults}
 flkResults <- testData %>%
   dplyr::select(snpID, `Pop ID`, P) %>%
   mutate(`Pop ID` = c("Gum Creek (1996)", "Oraparinna (2012)")[`Pop ID`]) %>%
@@ -234,7 +233,7 @@ flkResults <- testData %>%
   arrange(F.LK.p.val)
 ```
 
-```{r}
+```{r flkResults2}
 flkResults <- testData %>%
   dplyr::select(snpID, Chr, BP, `Pop ID`, `P Nuc`, `Q Nuc`, P) %>%
   mutate(`Pop ID` = c("Gum Creek (1996)", "Oraparinna (2012)")[`Pop ID`]) %>%
