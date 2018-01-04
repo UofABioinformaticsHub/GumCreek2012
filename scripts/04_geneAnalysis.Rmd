@@ -1,7 +1,7 @@
 ---
 title: "Analysis Of Genes Associated With Significant SNPs"
 author: "Steve Pederson"
-date: "27th September 2017"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document: 
     fig_caption: yes
@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE,
                       message = FALSE, warning = FALSE)
 ```
 
-```{r}
+```{r loadPackages}
 library(tidyverse)
 library(rtracklayer)
 library(GenomicRanges)
@@ -32,7 +32,7 @@ library(stringr)
 ```
 
 
-```{r}
+```{r setParams}
 nCores <- min(12, detectCores() - 1)
 theme_set(theme_bw())
 evalLongChunks <- FALSE
@@ -57,7 +57,7 @@ This file covers three main areas
 
 `GenomicRanges` were formed defining all genes and exons according to the gene models in Build 84 of Ensembl.
 
-```{r}
+```{r gffInfo}
 gffFile <- file.path("..", "data", "Oryctolagus_cuniculus.OryCun2.0.84.gff3.gz") 
 ensGenes <- import.gff(gffFile, feature.type = "gene", sequenceRegionsAsSeqinfo = TRUE) %>%
   sortSeqlevels() 
@@ -96,7 +96,7 @@ ens2Go <- getBM(attributes = c("ensembl_gene_id","go_id", "namespace_1003"),
 
 - GO Terms in the biomaRt results which failed to map to the database were removed.
 
-```{r, eval = evalLongChunks}
+```{r ens2Go, eval = evalLongChunks}
 ens2Go %<>% split(f = .$ontology)
 ens2Go$BP %<>% filter(go_id %in% get(rootGO$BP, GOBPOFFSPRING))
 ens2Go$CC %<>% filter(go_id %in% get(rootGO$CC, GOCCOFFSPRING))
@@ -105,7 +105,7 @@ ens2Go %<>% bind_rows()
 ```
 - The file was then saved to disk and became the reference database for subsequent analyses.
 
-```{r, eval = evalLongChunks}
+```{r writeEns2Go, eval = evalLongChunks}
 gzOut <- file.path("..", "data", "ens2GO.biomaRt.84.tsv.gz") %>% gzfile("w")
 write_delim(ens2Go, gzOut, delim ="\t")
 close(gzOut)
@@ -121,7 +121,7 @@ ens2Go <- file.path("..", "data","ens2GO.biomaRt.84.tsv.gz") %>%
 
 - Paths were formed mapping all GO Terms obtained from `biomaRt` back to the root nodes.
 
-```{r, eval = evalLongChunks}
+```{r allGOAncestor, eval = evalLongChunks}
 allGOAncestor <- list(
   BP = filter(ens2Go, ontology == "BP") %>%
     extract2("go_id") %>%
@@ -140,7 +140,7 @@ allGOAncestor <- list(
 
 - Each gene was then mapped to the complete set of GO terms and saved in an external table.
 
-```{r, eval = evalLongChunks}
+```{r ALLGO2ENS, eval = evalLongChunks}
 ALLGO2ENS <- ens2Go %>%
   split(f = .$ensembl_gene_id) %>%
   mclapply(function(x){
@@ -164,13 +164,13 @@ ALLGO2ENS <- ens2Go %>%
   mutate(ontology = Ontology(go_id))
 ```
 
-```{r, eval = evalLongChunks}
+```{r writeALLGO2ENS, eval = evalLongChunks}
 gzOut <- file.path("..", "data", "ALLGO2ENS.tsv.gz") %>% gzfile("w")
 write_delim(ALLGO2ENS, gzOut, delim = "\t")
 close(gzOut)
 ```
 
-```{r}
+```{r reloadALLGO2ENS}
 ALLGO2ENS <- file.path("..", "data", "ALLGO2ENS.tsv.gz") %>%
   gzfile() %>%
   read_tsv()
@@ -189,7 +189,7 @@ singleGeneGO <- ALLGO2ENS %>%
 
 GO Terms were then defined in terms of their minimum distance to the Root Nodes, down to those requiring up to 3 steps.
 
-```{r}
+```{r setGoLevels, cache=TRUE}
 firstLevelGO <- list(
   BP = c(rootGO$BP, get(rootGO$BP, GOBPCHILDREN)),
   CC = c(rootGO$CC, get(rootGO$CC, GOCCCHILDREN)),
@@ -216,22 +216,27 @@ thirdLevelGO <- list(
 
 ## SNPs
 
-```{r}
-resultFiles <- file.path("..", "results", c("alleleResults.tsv", 
+```{r loadResults}
+resultFiles <- file.path("..", "results", c("flkResults.tsv", 
+                                            "alleleResults.tsv",
                                             "genotypeResults.tsv")) %>%
-  set_names(c("alleles", "genotypes"))
+  set_names(c("flk", "alleles", "genotypes"))
 results <- resultFiles %>%
   lapply(read_tsv) 
 ```
 
-```{r}
-resultsGR <- do.call(
-  "full_join", 
-  names(results) %>%
-    lapply(function(x){
-      names(results[[x]]) <- gsub("^(p|FDR)$", paste(x, "\\1", sep = "_"), names(results[[x]]))
-      dplyr::select(results[[x]], -adjP)
-    })) %>%
+```{r resultsGR}
+resultsGR <- full_join(
+  results$flk %>%
+    dplyr::select(snpID, Chr, BP, SNP, `Gum Creek (1996)`, `Oraparinna (2012)`,
+                  FLK_p = F.LK.p.val, FLK_FDR = FDR),
+  results$alleles %>%
+    dplyr::select(snpID, Chr, BP, alleles_p = p, alleles_FDR = FDR)
+) %>%
+  full_join(
+  results$genotypes %>%
+    dplyr::select(snpID, Chr, BP, genotypes_p = p, genotypes_FDR = FDR)
+  ) %>%
   makeGRangesFromDataFrame(
     keep.extra.columns = TRUE, 
     ignore.strand = TRUE,
@@ -242,8 +247,8 @@ resultsGR <- do.call(
   sort()
 ```
 
-```{r}
-resultsGR$Sig <- resultsGR$alleles_FDR < 0.1 | resultsGR$genotypes_FDR < 0.1
+```{r resultsGR_Sig}
+resultsGR$Sig <- with(resultsGR, FLK_FDR < 0.05 | genotypes_FDR < 0.1)
 ```
 
 
@@ -251,7 +256,7 @@ resultsGR$Sig <- resultsGR$alleles_FDR < 0.1 | resultsGR$genotypes_FDR < 0.1
 
 ## SNPs within genes
 
-```{r}
+```{r snpInGenes}
 snpInGenes <- resultsGR %>% 
   subset(Sig) %>%
   findOverlaps(ensGenes)
@@ -277,9 +282,9 @@ ensGenes[subjectHits(snpInGenes)] %>%
   ) %>%
   mutate(inExon = snpID %in% subset(resultsGR, Sig)[queryHits(snpInExons)]$snpID) %>%
   rowwise() %>%
-  mutate(snpID = if_else(inExon, paste0(snpID,"*"), snpID)) %>%
+  mutate(snpID = if_else(inExon, paste0(snpID,"*"), snpID),
+         Name = ifelse(is.na(Name), "", Name)) %>%
   dplyr::select(`Gene ID` = gene_id, Name, Chr, BP, snpID) %>%
-  filter(!is.na(Name)) %>%
   pander(justify = "llrrl",
          style = "rmarkdown",
          big.mark = ",",
@@ -291,7 +296,7 @@ ensGenes[subjectHits(snpInGenes)] %>%
 
 ## Genes within 20kb
 
-```{r}
+```{r allGenesIn20kb}
 allGenesIn20kb <- subsetByOverlaps(
   ensGenes, 
   resultsGR %>%
@@ -311,7 +316,7 @@ As a an initial conservative approach, the set of genes within 20kb of a SNP was
 This produced a list of `r length(allGenesIn20kb)` genes in total, of which `r length(sigGenesIn20kb)` overlapped SNPs of interest.
 
 
-```{r}
+```{r go2Test20kb}
 go2Test20kb <- ALLGO2ENS %>%
   filter(ensembl_gene_id %in% sigGenesIn20kb$gene_id,
          !go_id %in% unlist(thirdLevelGO)) %>%
@@ -329,7 +334,7 @@ Fisher's Exact Test was then used to test for enrichment by counting the genes m
 All p values were then adjusted using Benjamini-Hochberg's FDR.
 
 
-```{r}
+```{r goResults20kb}
 nSigGenes <- length(sigGenesIn20kb)
 nNotSigGenes <- length(allGenesIn20kb) - nSigGenes
 goResults20kb <- go2Test20kb %>%
@@ -375,9 +380,7 @@ goResults20kb %>%
 
 ## Genes within 40kb
 
-
-
-```{r}
+```{r allGenesIn40kb}
 allGenesIn40kb <- subsetByOverlaps(
   ensGenes, 
   resultsGR %>%
@@ -397,7 +400,7 @@ The same approach was then repeated for genes within 40kb of each SNP.
 This produced a list of `r length(allGenesIn40kb)` genes in total, of which `r length(sigGenesIn40kb)` overlapped SNPs of interest.
 
 
-```{r}
+```{r go2Test40kb}
 go2Test40kb <- ALLGO2ENS %>%
   filter(ensembl_gene_id %in% sigGenesIn40kb$gene_id,
          !go_id %in% unlist(thirdLevelGO)) %>%
@@ -410,7 +413,7 @@ A set of `r length(go2Test40kb)` GO terms mapping to more than one gene, and wit
 These were then tested for enrichment using the set of genes within 40kb of the remaining `r sum(!resultsGR$Sig)` SNPs
 
 
-```{r}
+```{r goResults40kb}
 nSigGenes <- length(sigGenesIn40kb)
 nNotSigGenes <- length(allGenesIn40kb) - nSigGenes
 goResults40kb <- go2Test40kb %>%
@@ -459,9 +462,9 @@ The appearance of terms connected to the Zinc ion may be of note as the link bet
 
 ### Export of Results
 
-The set of genes within 40kb of each SNP of nterest were then exported.
+The set of genes within 40kb of each SNP of interest were then exported.
 
-```{r}
+```{r hitsIn40kb}
 hitsIn40kb <- findOverlaps(
   resultsGR %>%
     subset(Sig)%>%
@@ -471,14 +474,14 @@ hitsIn40kb <- findOverlaps(
     )
 ```
 
-```{r}
+```{r exportGenesIn40kb}
 tsvOut <- file.path("..", "results", "GenesIn40kb.tsv")
 list(
   resultsGR %>%
     subset(Sig) %>%
     extract(queryHits(hitsIn40kb)) %>%
     as.data.frame() %>%
-    dplyr::select(snpID, Chr = seqnames, BP = start, genotypes_p,  alleles_p) ,
+    dplyr::select(snpID, Chr = seqnames, BP = start, genotypes_p,  FLK_p) ,
   ensGenes %>%
     extract(subjectHits(hitsIn40kb)) %>%
     as.data.frame() %>%
@@ -490,14 +493,14 @@ list(
   mutate(LocusID = gsub("([0-9]*)_[0-9]*", "\\1", snpID),
          dist2Gene = if_else(BP > GeneStart && BP < GeneEnd, 0L, min(abs(c(BP - GeneStart, BP - GeneEnd)))),
          GeneWidth = abs(GeneStart - GeneEnd)) %>%
-  dplyr::select(LocusID, snpID, Chr, BP, NearGene, GeneName, GeneStrand = strand, GeneStart, GeneEnd, GeneWidth, dist2Gene, genotypes_p, alleles_p) %>%
-  mutate(minP = min(genotypes_p, alleles_p)) %>%
+  dplyr::select(LocusID, snpID, Chr, BP, NearGene, GeneName, GeneStrand = strand, GeneStart, GeneEnd, GeneWidth, dist2Gene, genotypes_p, FLK_p) %>%
+  mutate(minP = min(genotypes_p, FLK_p)) %>%
   arrange(minP) %>%
   dplyr::select(-minP) %>%
   as.data.frame() %>%
   write_tsv(tsvOut)
 ```
 
-```{r, results='asis'}
+```{r sessionInfo, results='asis'}
 pander(sessionInfo()) 
 ```
