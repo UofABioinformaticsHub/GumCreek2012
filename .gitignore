@@ -4,7 +4,7 @@
 .Ruserdata
 *RData
 *Rmd
-*html
 *.pdf
 scripts/*txt
 temp/*
+*cache*

@@ -1,6 +1,12 @@
-# SNP Filtering
-Steve Pederson  
-21 September 2017  
+---
+title: "SNP Filtering"
+author: "Steve Pederson"
+date: "21 September 2017"
+output: 
+  html_document: 
+    keep_md: yes
+    toc: yes
+---
 
 
 
@@ -380,7 +386,7 @@ grep("ora", rownames(alleles), value = TRUE) %>%
 ```
 
 
-**R version 3.4.2 (2017-09-28)**
+**R version 3.4.3 (2017-11-30)**
 
 **Platform:** x86_64-pc-linux-gnu (64-bit) 
 
@@ -391,9 +397,9 @@ _LC_CTYPE=en_AU.UTF-8_, _LC_NUMERIC=C_, _LC_TIME=en_AU.UTF-8_, _LC_COLLATE=en_AU
 _parallel_, _stats4_, _stats_, _graphics_, _grDevices_, _utils_, _datasets_, _methods_ and _base_
 
 **other attached packages:** 
-_bindrcpp(v.0.2)_, _stringr(v.1.2.0)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _reshape2(v.1.4.2)_, _rtracklayer(v.1.36.6)_, _GenomicRanges(v.1.28.6)_, _GenomeInfoDb(v.1.12.3)_, _IRanges(v.2.10.5)_, _S4Vectors(v.0.14.7)_, _BiocGenerics(v.0.22.1)_, _magrittr(v.1.5)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.1.1)_
+_bindrcpp(v.0.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _reshape2(v.1.4.2)_, _rtracklayer(v.1.38.2)_, _GenomicRanges(v.1.30.0)_, _GenomeInfoDb(v.1.14.0)_, _IRanges(v.2.12.0)_, _S4Vectors(v.0.16.0)_, _BiocGenerics(v.0.24.0)_, _magrittr(v.1.5)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
 
 **loaded via a namespace (and not attached):** 
-_Rcpp(v.0.12.13)_, _lubridate(v.1.6.0)_, _lattice(v.0.20-35)_, _Rsamtools(v.1.28.0)_, _Biostrings(v.2.44.2)_, _assertthat(v.0.2.0)_, _rprojroot(v.1.2)_, _digest(v.0.6.12)_, _psych(v.1.7.8)_, _R6(v.2.2.2)_, _cellranger(v.1.1.0)_, _plyr(v.1.8.4)_, _backports(v.1.1.1)_, _evaluate(v.0.10.1)_, _httr(v.1.3.1)_, _zlibbioc(v.1.22.0)_, _rlang(v.0.1.2)_, _lazyeval(v.0.2.0)_, _readxl(v.1.0.0)_, _Matrix(v.1.2-11)_, _rmarkdown(v.1.6)_, _BiocParallel(v.1.10.1)_, _foreign(v.0.8-69)_, _RCurl(v.1.95-4.8)_, _munsell(v.0.4.3)_, _DelayedArray(v.0.2.7)_, _broom(v.0.4.2)_, _compiler(v.3.4.2)_, _modelr(v.0.1.1)_, _pkgconfig(v.2.0.1)_, _mnormt(v.1.5-5)_, _htmltools(v.0.3.6)_, _SummarizedExperiment(v.1.6.5)_, _GenomeInfoDbData(v.0.99.0)_, _matrixStats(v.0.52.2)_, _XML(v.3.98-1.9)_, _GenomicAlignments(v.1.12.2)_, _bitops(v.1.0-6)_, _grid(v.3.4.2)_, _nlme(v.3.1-131)_, _jsonlite(v.1.5)_, _gtable(v.0.2.0)_, _stringi(v.1.1.5)_, _XVector(v.0.16.0)_, _xml2(v.1.1.1)_, _tools(v.3.4.2)_, _forcats(v.0.2.0)_, _Biobase(v.2.36.2)_, _glue(v.1.1.1)_, _hms(v.0.3)_, _yaml(v.2.1.14)_, _colorspace(v.1.3-2)_, _rvest(v.0.3.2)_, _knitr(v.1.17)_, _bindr(v.0.1)_ and _haven(v.1.1.0)_
+_Rcpp(v.0.12.14)_, _lubridate(v.1.7.1)_, _lattice(v.0.20-35)_, _Rsamtools(v.1.30.0)_, _Biostrings(v.2.46.0)_, _assertthat(v.0.2.0)_, _rprojroot(v.1.2)_, _digest(v.0.6.12)_, _psych(v.1.7.8)_, _R6(v.2.2.2)_, _cellranger(v.1.1.0)_, _plyr(v.1.8.4)_, _backports(v.1.1.1)_, _evaluate(v.0.10.1)_, _httr(v.1.3.1)_, _zlibbioc(v.1.24.0)_, _rlang(v.0.1.4)_, _lazyeval(v.0.2.1)_, _readxl(v.1.0.0)_, _rstudioapi(v.0.7)_, _Matrix(v.1.2-12)_, _rmarkdown(v.1.8)_, _BiocParallel(v.1.12.0)_, _foreign(v.0.8-69)_, _RCurl(v.1.95-4.8)_, _munsell(v.0.4.3)_, _DelayedArray(v.0.4.1)_, _broom(v.0.4.3)_, _compiler(v.3.4.3)_, _modelr(v.0.1.1)_, _pkgconfig(v.2.0.1)_, _mnormt(v.1.5-5)_, _htmltools(v.0.3.6)_, _SummarizedExperiment(v.1.8.0)_, _GenomeInfoDbData(v.0.99.1)_, _matrixStats(v.0.52.2)_, _XML(v.3.98-1.9)_, _crayon(v.1.3.4)_, _GenomicAlignments(v.1.14.1)_, _bitops(v.1.0-6)_, _grid(v.3.4.3)_, _nlme(v.3.1-131)_, _jsonlite(v.1.5)_, _gtable(v.0.2.0)_, _cli(v.1.0.0)_, _stringi(v.1.1.6)_, _XVector(v.0.18.0)_, _xml2(v.1.1.1)_, _tools(v.3.4.3)_, _Biobase(v.2.38.0)_, _glue(v.1.2.0)_, _hms(v.0.4.0)_, _yaml(v.2.1.15)_, _colorspace(v.1.3-2)_, _rvest(v.0.3.2)_, _knitr(v.1.17)_, _bindr(v.0.1)_ and _haven(v.1.1.0)_
 
 
