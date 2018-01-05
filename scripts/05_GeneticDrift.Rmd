@@ -1,7 +1,7 @@
 ---
 title: "Simulation of Genetic Drift"
 author: "Steve Pederson"
-date: "28 September 2017"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document: 
     fig_caption: yes
@@ -24,8 +24,10 @@ library(magrittr)
 library(dplyr)
 library(scales)
 library(ggplot2)
+library(ggrepel)
 library(parallel)
 library(readr)
+library(reshape2)
 ```
 
 ```{r}
@@ -69,13 +71,13 @@ As decided the population parameters were defined as:
 |:----------- |:-------------- |:----------------------------------------------------------- |
 | *Ne*~1996~  | `r Ne["1996"]` | Effective Population Size in 1996                           |
 | *Ne*~2012~  | `r Ne["2012"]` | Effective Population Size in 2012                           |
-| *p*         | `r pSurv`      | Probability of survival after initial outbreak              |
+| *p*         | `r pSurv`      | Probability of survival for each generation              |
 | *g*         | `r nGen`       | The number of generations between 1996 and 2012             |
 | *n*         | `r nPops`      | The number of neighbouring populations                      |
 | *l*         | `r litterSize` | The annual litter size                                      |
 | *r*         | `r migRate`    | The migration rate                                          |
-| *f~0~*      | 0.5 to 0.95    | The starting allele frequency, increased in steps of 0.05  |
-| *&sigma;*   | `r sigma`      | The initial variability in *f~0~* in neighbouring populations |
+| *f~0~*      | 0.5 to 0.95    | The starting allele frequency in the main population, increased in steps of 0.05  |
+| *&sigma;*   | `r sigma`      | The variability around *f~0~* for neighbouring populations |
 
 No selective advantage was specified for any allele.
 
@@ -92,7 +94,7 @@ To summarise the above:
 1. The effective population size was defined as Ne = `r Ne[[1]]` representing the initial population in 1996. 
 2. A starting major allele frequency was selected as one of *f~0~* = `r pander(f0)`. Each rabbit was simulated as heterozygous or homozygous for either the major or minor allele using the initial starting frquency
 3. An initial survival rate was defined as p = `r pSurv`, with this functioning as an initial bottleneck, and rabbits were assigned as survivors or fatalities with this probability.
-4. This population was considered as the *central population*, and this initialisation process was then repeated for either `r nPops[1]` or `r nPops[2]` neighbouring populations of the same size. However, variability was added to the initial allele frequencies on the logit scale using values of *&sigma;* = `r pander(sigma)`. The same bottleneck procedure was applied to each of these populations.
+4. This population was considered as the *central population*, and this initialisation process was then repeated **for either `r nPops[1]` or `r nPops[2]` neighbouring populations** of the same size. However, **variability was added to the initial allele frequencies on the logit scale using values of** *&sigma;* = `r pander(sigma)`. The same bottleneck procedure was applied to each of these populations.
 
 
 # Placing Variability in Context
@@ -106,10 +108,6 @@ y_0 <- sigma %>%
     inv.logit(rnorm(nSamp, logit(x_0), sigma))
   })
 ```
-
-
-In order to express these values for *&sigma;* in terms of correlations, `r comma(nSamp)` random values were simulated for a starting frequency (*f~0~*) anywhere between 0.5 and 0.95.
-`r comma(nSamp)` _neighbouring population starting values_ were randomly sampled around this using the values of *&sigma;* = `r pander(sigma)`, with the random sampling taking place on the logit scale.
 
 
 ```{r plotAddVars, echo=FALSE, fig.height=5, fig.cap="The effect of adding variability to derive initial frequencies in neighbouring populations. Half of the simulated initial values will be contained by the box for each starting frequency, with the remaining half being outside of these bounds."}
@@ -142,7 +140,7 @@ data_frame(Sigma = sigma,
            Correlation = vapply(y_0, cor, y = x_0, numeric(1))) %>%
   pander(digits = 2,
          style ="rmarkdown",
-         caption = paste("Approximate correlations between starting allele frequencies in two populations, for three chosen values of $\\sigma$"))
+         caption = paste("Approximate correlations between starting allele frequencies in two populations, for the chosen values of $\\sigma$"))
 ```
 
 
@@ -174,6 +172,39 @@ allSim <- allParam %>%
 write_rds(allSim, "../allSim_Nov2017.rds")
 ```
 
+## Inspection of Simulations
+
+As expected the mean allele frequency after simulation of drift remained approximately equal to the initial starting frquency, however the variability of the final frequency was heavily affected by the number of neighbouring populations and their similarity to the to main population of interest.
+
+```{r simValues, echo=FALSE, fig.cap="Mean and standard devation of allele frequencies ($f_t$) after simulating drift. Polynomial lines of best fit are shown for each value.", fig.height=6}
+bind_rows(allParam) %>% 
+  mutate(n_t = vapply(allSim, mean, numeric(1)),
+         sd_t = vapply(allSim, sd, numeric(1)),
+         n = as.factor(n),
+         sd = as.factor(sd)) %>%
+  dplyr::select(f0, nPops = n, sd_0 = sd, n_t, sd_t) %>%
+  melt(id.vars = c("f0", "nPops", "sd_0")) %>%
+  ggplot(aes(f0, value, shape = nPops, colour = sd_0, linetype = nPops)) +
+  geom_point( size = 2.5) +
+  geom_smooth(method = "lm", formula = y~poly(x,2), se = FALSE, size = 0.5) +
+  facet_wrap(~variable, ncol = 2, scales = "free",
+             labeller = as_labeller(c(n_t = "bar(f[t])", sd_t = "SD(f[t])"), default = label_parsed)) +
+  labs(x = "Initial Value (f0)",
+       y = "After Simulations",
+       shape = "Number of Neighbouring Populations (n)",
+       linetype = "Number of Neighbouring Populations (n)",
+       colour = expression(paste("Initial Variability in Neighbouring Populations (", sigma, ")"))) +
+  scale_colour_manual(values = c(rgb(0.1,0.1,0.8), rgb(0.9,0,0))) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
+
+- More populations surrounding the main population tended to hold allele frequencies steady over time
+- More varibility between populations resulted in wider distributions, i.e. more variable allele frequencies, after allowing for drift
+- The Gum Creek / Oraparinna population is not an isolated population, but will likely experience migration from a continuous larger population. The variability within this larger popaulation is unknown.
+- The most conservative approach to apply in analysis would be to assume a small number of neighbouring populations, which are highly genetically divergent, giving the greates room for variable drift. Observed changes in allele frequencies beyond extreme simulated values would then be more likely to contain an element of selective pressure.
+
+
 ```{r allSim99}
 allSim99 <- allSim %>%
   lapply(quantile, probs = c(alpha/2, 1-alpha/2)) %>%
@@ -192,8 +223,91 @@ driftIntervals <- allParam %>%
   cbind(allSim99)
 ```
 
+```{r driftBands, echo=FALSE, fig.cap=paste("Expected", percent(1-alpha), "intervals for individual allele frequencies under each set of criteria used in generation of simulations."), fig.height=6}
+driftIntervals %>%
+  mutate(n = as.factor(n),
+         sd = as.factor(sd)) %>%
+  dplyr::select(f0, nPops = n, sd_0 = sd, lwr, upr) %>%
+  ggplot(aes(f0, shape = nPops, colour = sd_0)) +
+  geom_point(aes(y = lwr), size = 2) +
+  geom_smooth(aes(y = lwr, linetype = nPops), 
+              se = FALSE, method = "lm", formula = y~poly(x,2), size = 0.5) +
+  geom_point(aes(y = upr), size = 2) +
+  geom_smooth(aes(y = upr, linetype = nPops), 
+              se = FALSE, method = "lm", formula = y~poly(x,2), size = 0.5) +
+  scale_linetype_manual(values = c(1, 2)) +
+  scale_colour_manual(values = c(rgb(0.1,0.1,0.8), rgb(0.9,0,0))) +
+  labs(x = "Initial Value (f0)",
+       y = paste(percent(1 -alpha), "Simulated Prediction Interval"),
+       shape = "Number of Neighbouring Populations (n)",
+       linetype = "Number of Neighbouring Populations (n)",
+       colour = expression(paste("Initial Variability in Neighbouring Populations (", sigma, ")"))) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+```
 
-Save here for now to run over the weekend
+## Comparison With Observed Data
+
+```{r}
+flkResults <- file.path("..", "results", "flkResults.tsv") %>%
+  read_tsv
+genotypeResults <- file.path("..", "results", "genotypeResults.tsv") %>%
+  read_tsv
+sigSnps <- c(filter(flkResults, FDR < 0.05)$snpID,
+             filter(genotypeResults, FDR < 0.1)$snpID) %>%
+  unique
+```
+
+```{r, echo=FALSE}
+cp <- paste("Allele frequencies in the two populations.", 
+            "SNPs considered as significant under either the Full Genotype (FDR = 0.1) or FLK (FDR = 0.05) models are highlighted in green.", 
+            "The top 15 SNPs considered significant under FLK are labelled.",
+            percent(1 - alpha), "prediction intervals are indicated by the bands for differing simulation parameters.",
+            "Intervals generated by 4 neighbouring populations are shown in red, whilst intervals generated by 8 neighbouring populations are shown in blue.",
+            "Neigbouring populations with the closest similarity to the main population are shown with solid lines, whilst those with less similarity are shown as dashed lines.",
+            "The two points which clearly fall within all bands were found significant  under the full genotype model and show differencec in heterozygosity rather than in the allele frequencies themselves.",
+            "The inner blue bands represent the expected scenario which most closely resembles the ecological system under investigation, with a continuous population of rabbits (i.e. a large number of neighbouring populations), with highly correlated allele frequencies.")
+```
+
+
+```{r flkWithDriftBands, echo=FALSE, fig.height=7, fig.cap=cp}
+flkResults %>%
+  filter(!snpID %in% sigSnps) %>%
+  ggplot() +
+  geom_point(aes(x = `Gum Creek (1996)`, y = `Oraparinna (2012)`),
+             alpha = 0.4) +
+  geom_smooth(aes(x = f0, y = lwr, linetype = as.factor(sd)), 
+              data = filter(driftIntervals, n == 4),
+              method = "lm", formula = y ~ poly(x, 2),
+              fullrange = TRUE, se = FALSE,
+              colour = rgb(0.9,0,0), size = 0.8) +
+  geom_smooth(aes(x = f0, y = lwr, linetype = as.factor(sd)), 
+              data = filter(driftIntervals, n == 8),
+              method = "lm", formula = y ~ poly(x, 2),
+              fullrange = TRUE, se = FALSE,
+              colour = rgb(0.1,0.1,0.8), size = 0.8) +
+  geom_smooth(aes(x = f0, y = upr, linetype = as.factor(sd)), 
+              data = filter(driftIntervals, n == 4),
+              method = "lm", formula = y ~ poly(x, 2),
+              fullrange = FALSE, se = FALSE,
+              colour = rgb(0.9,0,0), size = 0.8) +
+  geom_smooth(aes(x = f0, y = upr, linetype = as.factor(sd)), 
+              data = filter(driftIntervals, n == 8),
+              method = "lm", formula = y ~ poly(x, 2),
+              fullrange = FALSE, se = FALSE,
+              colour = rgb(0.1,0.1,0.8), size = 0.8) +
+  geom_point(aes(x = `Gum Creek (1996)`, y = `Oraparinna (2012)`),
+             data = filter(flkResults, snpID %in% sigSnps),
+             colour = rgb(0,0.8,0.2), size = 2) +
+  geom_text_repel(aes(x = `Gum Creek (1996)`, y = `Oraparinna (2012)`, label = snpID),
+             data = arrange(flkResults, FDR)[1:15,],
+             colour = rgb(0,0.8,0.2)) +
+  scale_colour_manual(values = c("black", rgb(0, 0.5, 0))) +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+
 
 ```{r}
 save.image("../05_GeneticDrift.RData")

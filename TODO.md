@@ -1,3 +1,2 @@
-- Finish Genetic Drift Analysis
 - Linkage Disequilibrium
 - Add phylogeny

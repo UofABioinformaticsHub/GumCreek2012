@@ -1,7 +1,7 @@
 ---
 title: "Simulation of Genetic Drift"
 author: "Steve Pederson"
-date: "28 September 2017"
+date: "05 January, 2018"
 output: 
   html_document: 
     fig_caption: yes
@@ -22,8 +22,10 @@ library(magrittr)
 library(dplyr)
 library(scales)
 library(ggplot2)
+library(ggrepel)
 library(parallel)
 library(readr)
+library(reshape2)
 ```
 
 
@@ -70,13 +72,13 @@ As decided the population parameters were defined as:
 |:----------- |:-------------- |:----------------------------------------------------------- |
 | *Ne*~1996~  | 222 | Effective Population Size in 1996                           |
 | *Ne*~2012~  | 116 | Effective Population Size in 2012                           |
-| *p*         | 0.1      | Probability of survival after initial outbreak              |
+| *p*         | 0.1      | Probability of survival for each generation              |
 | *g*         | 16       | The number of generations between 1996 and 2012             |
 | *n*         | 4, 8      | The number of neighbouring populations                      |
 | *l*         | 30 | The annual litter size                                      |
 | *r*         | 0.15    | The migration rate                                          |
-| *f~0~*      | 0.5 to 0.95    | The starting allele frequency, increased in steps of 0.05  |
-| *&sigma;*   | 0.5, 0.8      | The initial variability in *f~0~* in neighbouring populations |
+| *f~0~*      | 0.5 to 0.95    | The starting allele frequency in the main population, increased in steps of 0.05  |
+| *&sigma;*   | 0.5, 0.8      | The variability around *f~0~* for neighbouring populations |
 
 No selective advantage was specified for any allele.
 
@@ -93,7 +95,7 @@ To summarise the above:
 1. The effective population size was defined as Ne = 222 representing the initial population in 1996. 
 2. A starting major allele frequency was selected as one of *f~0~* = _0.5_, _0.55_, _0.6_, _0.65_, _0.7_, _0.75_, _0.8_, _0.85_, _0.9_ and _0.95_. Each rabbit was simulated as heterozygous or homozygous for either the major or minor allele using the initial starting frquency
 3. An initial survival rate was defined as p = 0.1, with this functioning as an initial bottleneck, and rabbits were assigned as survivors or fatalities with this probability.
-4. This population was considered as the *central population*, and this initialisation process was then repeated for either 4 or 8 neighbouring populations of the same size. However, variability was added to the initial allele frequencies on the logit scale using values of *&sigma;* = _0.5_ and _0.8_. The same bottleneck procedure was applied to each of these populations.
+4. This population was considered as the *central population*, and this initialisation process was then repeated **for either 4 or 8 neighbouring populations** of the same size. However, **variability was added to the initial allele frequencies on the logit scale using values of** *&sigma;* = _0.5_ and _0.8_. The same bottleneck procedure was applied to each of these populations.
 
 
 # Placing Variability in Context
@@ -110,10 +112,6 @@ y_0 <- sigma %>%
 ```
 
 
-In order to express these values for *&sigma;* in terms of correlations, 1,000,000 random values were simulated for a starting frequency (*f~0~*) anywhere between 0.5 and 0.95.
-1,000,000 _neighbouring population starting values_ were randomly sampled around this using the values of *&sigma;* = _0.5_ and _0.8_, with the random sampling taking place on the logit scale.
-
-
 ![The effect of adding variability to derive initial frequencies in neighbouring populations. Half of the simulated initial values will be contained by the box for each starting frequency, with the remaining half being outside of these bounds.](05_GeneticDrift_files/figure-html/plotAddVars-1.png)
 
 
@@ -126,7 +124,7 @@ In order to express these values for *&sigma;* in terms of correlations, 1,000,0
 |  0.5  |    0.81     |
 |  0.8  |    0.65     |
 
-Table: Approximate correlations between starting allele frequencies in two populations, for three chosen values of $\sigma$
+Table: Approximate correlations between starting allele frequencies in two populations, for the chosen values of $\sigma$
 
 
 # Run Simulations
@@ -157,6 +155,18 @@ allSim <- allParam %>%
 
 
 
+## Inspection of Simulations
+
+As expected the mean allele frequency after simulation of drift remained approximately equal to the initial starting frquency, however the variability of the final frequency was heavily affected by the number of neighbouring populations and their similarity to the to main population of interest.
+
+![Mean and standard devation of allele frequencies ($f_t$) after simulating drift. Polynomial lines of best fit are shown for each value.](05_GeneticDrift_files/figure-html/simValues-1.png)
+
+- More populations surrounding the main population tended to hold allele frequencies steady over time
+- More varibility between populations resulted in wider distributions, i.e. more variable allele frequencies, after allowing for drift
+- The Gum Creek / Oraparinna population is not an isolated population, but will likely experience migration from a continuous larger population. The variability within this larger popaulation is unknown.
+- The most conservative approach to apply in analysis would be to assume a small number of neighbouring populations, which are highly genetically divergent, giving the greates room for variable drift. Observed changes in allele frequencies beyond extreme simulated values would then be more likely to contain an element of selective pressure.
+
+
 
 ```r
 allSim99 <- allSim %>%
@@ -177,8 +187,27 @@ driftIntervals <- allParam %>%
   cbind(allSim99)
 ```
 
+![Expected 99.9% intervals for individual allele frequencies under each set of criteria used in generation of simulations.](05_GeneticDrift_files/figure-html/driftBands-1.png)
 
-Save here for now to run over the weekend
+## Comparison With Observed Data
+
+
+```r
+flkResults <- file.path("..", "results", "flkResults.tsv") %>%
+  read_tsv
+genotypeResults <- file.path("..", "results", "genotypeResults.tsv") %>%
+  read_tsv
+sigSnps <- c(filter(flkResults, FDR < 0.05)$snpID,
+             filter(genotypeResults, FDR < 0.1)$snpID) %>%
+  unique
+```
+
+
+
+
+![Allele frequencies in the two populations. SNPs considered as significant under either the Full Genotype (FDR = 0.1) or FLK (FDR = 0.05) models are highlighted in green. The top 15 SNPs considered significant under FLK are labelled. 99.9% prediction intervals are indicated by the bands for differing simulation parameters. Intervals generated by 4 neighbouring populations are shown in red, whilst intervals generated by 8 neighbouring populations are shown in blue. Neigbouring populations with the closest similarity to the main population are shown with solid lines, whilst those with less similarity are shown as dashed lines. The two points which clearly fall within all bands were found significant  under the full genotype model and show differencec in heterozygosity rather than in the allele frequencies themselves. The inner blue bands represent the expected scenario which most closely resembles the ecological system under investigation, with a continuous population of rabbits (i.e. a large number of neighbouring populations), with highly correlated allele frequencies.](05_GeneticDrift_files/figure-html/flkWithDriftBands-1.png)
+
+
 
 
 ```r
