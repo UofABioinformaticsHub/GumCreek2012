@@ -211,6 +211,6 @@ sigSnps <- c(filter(flkResults, FDR < 0.05)$snpID,
 
 
 ```r
-save.image("../05_GeneticDrift.RData")
+save.image("../temp/05_GeneticDrift.RData")
 ```
 

@@ -310,6 +310,6 @@ flkResults %>%
 
 
 ```{r}
-save.image("../05_GeneticDrift.RData")
+save.image("../temp/05_GeneticDrift.RData")
 ```
 
