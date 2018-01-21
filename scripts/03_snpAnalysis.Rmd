@@ -30,6 +30,7 @@ library(grid)
 library(qqman)
 library(sp)
 library(ggmap)
+library(rgdal)
 ```
 
 
@@ -250,28 +251,71 @@ print(p23, vp = vp23)
 ```
 
 
-```{r map1, echo=FALSE, fig.cap="Collection points for all 2012 samples with colours showing sub-populations defined by PCA analysis.", fig.height=7, fig.width=7}
+```{r map1, echo=FALSE}
 loc <- c(range(sampleMetadata$Longitude) %>% mean,
          range(sampleMetadata$Latitude) %>% mean)
-ggMap <- get_map(loc, zoom = 12, maptype = "hybrid", source = "google")
-ggmap(ggMap) +
-  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population)) +
+ggMap <- get_map(loc, zoom = 12, maptype = "terrain", source = "google")
+zoomPlot <- ggmap(ggMap, extent = "normal", maprange = FALSE) +
+  geom_text(x = loc[1], y = -31.29, 
+            aes(label = "Flinders Ranges NP"),
+            colour = "grey10", size = 4) +
+  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population),
+             size = 2.5) +
   scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
                                  rgb(0.8, 0.2, 0.2, 0.9),
                                  rgb(0.2, 0.8, 0.2, 0.9),
                                  rgb(0.5, 0.5, 1, 0.7))) +
-  theme_bw() +
+  coord_map(xlim=c(attr(ggMap, "bb")$ll.lon, attr(ggMap, "bb")$ur.lon),
+            ylim=c(-31.33, -31.18)) +
   guides(colour = FALSE) +
   labs(x = "Longitude",
-       y = "Latitude")
+       y = "Latitude") +
+    theme_bw() +
+  theme(text = element_text(size = 11))
 ```
 
-```{r map2, echo=FALSE, fig.cap="Zoomed-in view of the central region for 2012 samples with colours showing sub-populations defined by PCA analysis.", fig.height=7, fig.width=7}
+```{r fullAusMap, results='hide'}
+ausPolygon <- file.path("..", "60804_shp", "framework") %>%
+  readOGR(layer = "aus25fgd_r") %>%
+  subset(AREA > 6)
+ausPts <- SpatialPoints(cbind(x = loc[1], y = loc[2]))
+proj4string(ausPts) <- proj4string(ausPolygon)
+fullPlot <- ggplot()+
+  geom_polygon(data=ausPolygon, 
+               aes(long, lat, group = group), fill = "white", colour = "black") + 
+  geom_point(data = as.data.frame(ausPts), aes(x, y), size = 3) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+```
+
+
+```{r plotWithInset, echo = FALSE, fig.cap="Collection points for all 2012 samples with colours showing sub-populations defined by PCA analysis.", fig.height=7, fig.width=8}
+grid.newpage()
+vp1 <- viewport(0.5,0.5, 1, 1)
+vp2 <- viewport(0.25, 0.28, 0.3, 0.3)
+print(zoomPlot, vp = vp1)
+print(fullPlot, vp = vp2)
+```
+
+
+```{r plotZoom, echo=FALSE, fig.cap="Zoomed-in view of the central region for 2012 samples with colours showing sub-populations defined by PCA analysis. The region considered to be the Central Region is shaded in red. Due to overlapping GPS points a small amount of jitter has been added to the x-axis.", fig.height=7, fig.width=7}
 zoomLoc <- c(138.753, -31.242)
-get_map(zoomLoc, zoom = 15, maptype = "hybrid", source = "google") %>%
+central <- rbind(x = c(138.749, 138.755),
+                 y = c(-31.2365, -31.2495)) %>%
+  set_colnames(c("min", "max"))
+get_map(zoomLoc, zoom = 15, maptype = "terrain", source = "google") %>%
   ggmap() +
-  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population),
-             size = 3) +
+  # geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population),
+  #            size = 3) +
+  geom_jitter(data= pcaForPlot, aes(Longitude, Latitude, colour = Population), size = 3, width = 0.0003, height = 0) +
+  geom_rect(xmin = central["x", "min"],
+            xmax = central["x", "max"],
+            ymin = central["y", "min"],
+            ymax = central["y", "max"],
+            fill = "red", alpha = 0.05) +
   scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
                                  rgb(0.8, 0.2, 0.2, 0.9),
                                  rgb(0.2, 0.8, 0.2, 0.9),
@@ -340,7 +384,10 @@ In this way, any candidate SNPs obtained below will be less impacted by this str
 ```{r oraRegions}
 oraRegions <- pcaForPlot %>% 
   filter(grepl("2012", Population)) %>% 
-  mutate(Central = grepl("Central", Population)) %>% 
+  rowwise() %>%
+  mutate(yCentral = cut(Latitude, breaks = central["y",], include.lowest = TRUE), 
+         xCentral = cut(Longitude, breaks = central["x",], include.lowest = TRUE),
+         Central = (is.na(yCentral) + is.na(xCentral)) == 0) %>%
   dplyr::select(sampleID, Central) %>%
   as.data.frame() %>%
   column_to_rownames("sampleID") 
@@ -356,7 +403,7 @@ H<sub>A</sub>: An association exists between genotypes and collection region
 ```{r ora}
 ora <- grep("ora", rownames(minorAlleleCounts), value = TRUE)
 regionResults <- minorAlleleCounts %>%
-  extract(ora,) %>%
+  magrittr::extract(ora,) %>%
   apply(MARGIN = 2, function(x){
     mat <- table(oraRegions[ora, "Central"], x)
     if (ncol(mat) > 1){
@@ -388,7 +435,7 @@ The previous structure noted in the data was no longer evident, and as such, the
 
 ```{r reducedPCA}
 reducedPCA <- dataForPCA %>%
-  extract(, !colnames(.) %in% regionSNPs) %>%
+  magrittr::extract(, !colnames(.) %in% regionSNPs) %>%
   prcomp()
 ```
 

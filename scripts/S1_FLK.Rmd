@@ -255,7 +255,7 @@ flkResults %>%
   write_tsv( file.path("..", "results", "flkResults.tsv"))
 ```
 
-```{r plotFlkSnps, echo=FALSE, fig.cap="Comparison of allele frequencies in both populations for all tested SNPs. SNPs considered as significant under FLK are highlighted in red.", fig.width=8, fig.height=6}
+```{r plotFlkSnps, echo=FALSE, fig.cap="Comparison of allele frequencies in both populations for all tested SNPs. SNPs considered as significant under FLK to an FDR of 0.05 are highlighted in red.", fig.width=8, fig.height=6}
 flkResults %>%
   mutate(Sig = FDR < 0.05) %>%
   ggplot(aes(`Gum Creek (1996)`,`Oraparinna (2012)`, colour = Sig)) +
