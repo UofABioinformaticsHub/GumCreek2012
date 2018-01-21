@@ -1,7 +1,7 @@
 ---
 title: "Analysis Of Genes Associated With Significant SNPs"
 author: "Steve Pederson"
-date: "04 January, 2018"
+date: "22 January, 2018"
 output: 
   html_document: 
     fig_caption: yes
@@ -279,8 +279,8 @@ snpInExons <- resultsGR %>%
   findOverlaps(ensExons)
 ```
 
-A total of 28 significant SNPs were found to be within the start and end points of genes.
-4 of these were within the coding regions of these genes.
+A total of 38 significant SNPs were found to be within the start and end points of genes.
+5 of these were within the coding regions of these genes.
 
 
 | Gene ID            | Name     |      Chr |          BP | snpID      |
@@ -288,7 +288,11 @@ A total of 28 significant SNPs were found to be within the start and end points 
 | ENSOCUG00000003383 | MGAT4A   |        2 |  93,561,889 | 214772_69  |
 | ENSOCUG00000017054 | TEX33    |        4 |  84,940,214 | 167107_60  |
 | ENSOCUG00000017054 | TEX33    |        4 |  84,940,235 | 167108_14  |
+| ENSOCUG00000005399 | EPO      |        6 |  27,103,573 | 157156_58* |
+| ENSOCUG00000005399 | EPO      |        6 |  27,103,576 | 157157_45* |
+| ENSOCUG00000001407 | MAGI2    |        7 |  38,250,131 | 151791_54  |
 | ENSOCUG00000011060 | MYO1B    |        7 | 131,862,327 | 147965_18  |
+| ENSOCUG00000005605 | LDLRAD4  |        9 |  48,543,229 | 134595_50  |
 | ENSOCUG00000024842 | CTIF     |        9 |  89,862,459 | 211772_50  |
 | ENSOCUG00000024842 | CTIF     |        9 |  89,862,481 | 211772_28  |
 | ENSOCUG00000024842 | CTIF     |        9 |  89,862,497 | 211772_12  |
@@ -304,15 +308,21 @@ A total of 28 significant SNPs were found to be within the start and end points 
 | ENSOCUG00000011533 | RHOBTB1  |       18 |  25,311,139 | 72765_47*  |
 | ENSOCUG00000007069 | FGFR2    |       18 |  68,517,919 | 208110_71  |
 | ENSOCUG00000007069 | FGFR2    |       18 |  68,517,942 | 208111_21  |
-| ENSOCUG00000013175 | FBLN5    |       20 |  14,022,385 | 64526_24*  |
+| ENSOCUG00000008478 | STXBP4   |       19 |  32,825,478 | 68946_78   |
+| ENSOCUG00000001207 | ESRRB    |       20 |  28,859,654 | 65474_28   |
 | ENSOCUG00000001722 | KSR2     |       21 |  14,643,101 | 62998_77   |
 | ENSOCUG00000021564 |          | GL018704 |   4,853,505 | 53831_42*  |
 | ENSOCUG00000009435 | XKR5     | GL018713 |     365,938 | 50206_34   |
 | ENSOCUG00000000596 | PLA2G16  | GL018717 |     314,346 | 48659_40   |
 | ENSOCUG00000017106 | KAZN     | GL018739 |      75,851 | 41475_63   |
+| ENSOCUG00000017031 | USP46    | GL018754 |   1,365,061 | 37345_16   |
+| ENSOCUG00000029175 |          | GL018758 |   1,220,835 | 36566_45   |
+| ENSOCUG00000029175 |          | GL018758 |   1,220,869 | 36567_12   |
 | ENSOCUG00000010092 | CPNE9    | GL018802 |     439,482 | 204810_79  |
+| ENSOCUG00000005387 | XRCC1    | GL018881 |      24,194 | 21896_47   |
+| ENSOCUG00000005387 | XRCC1    | GL018881 |      24,230 | 21896_11   |
 | ENSOCUG00000027400 | PLAUR    | GL018881 |      88,327 | 233206_29  |
-| ENSOCUG00000023502 |          | GL019002 |      95,028 | 14915_82   |
+| ENSOCUG00000029496 | UNC93A   | GL019406 |       5,672 | 5908_8     |
 
 Table: Genes with significant SNPs located between their start and end positions. SNPs within exons are indicated with an additional asterisk.
 
@@ -338,7 +348,7 @@ sigGenesIn20kb <- subsetByOverlaps(
 ```
 
 As a an initial conservative approach, the set of genes within 20kb of a SNP was investigated.
-This produced a list of 7365 genes in total, of which 43 overlapped SNPs of interest.
+This produced a list of 7407 genes in total, of which 65 overlapped SNPs of interest.
 
 
 
@@ -351,8 +361,8 @@ go2Test20kb <- ALLGO2ENS %>%
   setdiff(singleGeneGO)
 ```
 
-A set of 522 GO terms mapping to more than one gene, and with at least 4 steps back to the ontology roots, were assigned to the genes within 20kb of the 46 candidate SNPs.
-These were then tested for enrichment using the set of genes within 20kb of the remaining 17892 SNPs
+A set of 767 GO terms mapping to more than one gene, and with at least 4 steps back to the ontology roots, were assigned to the genes within 20kb of the 65 candidate SNPs.
+These were then tested for enrichment using the set of genes within 20kb of the remaining 18328 SNPs
 
 Due to the closely related nature of some SNPs in this dataset the possibility of two SNPs being within 20kb of the same genes was extremely high, and this approach would ensure that each gene only appears once despite the possibility of mapping to multiple SNPs within the dataset.
 
@@ -387,19 +397,16 @@ goResults20kb <- go2Test20kb %>%
   arrange(p)
 ```
 
-A total of 6 GO terms were considered as enriched using the criteria of an FDR-adjusted p-value < 0.05 and with observed numbers greater than that predicted by the ratio in the non-significant SNP genes.
+A total of 3 GO terms were considered as enriched using the criteria of an FDR-adjusted p-value < 0.05 and with observed numbers greater than that predicted by the ratio in the non-significant SNP genes.
 
 
 | GO ID      | Term                                   | Ont | Observed | Expected |         p |      FDR |
 |:-----------|:---------------------------------------|:----|---------:|---------:|----------:|---------:|
-| GO:0010359 | regulation of anion channel activity   | BP  |        2 | 0.005873 | 9.953e-05 | 0.003996 |
-| GO:0004792 | thiosulfate sulfurtransferase activity | MF  |        2 | 0.005873 | 9.953e-05 | 0.003996 |
-| GO:0071294 | cellular response to zinc ion          | BP  |        2 |  0.01762 | 0.0003293 |  0.01011 |
-| GO:0010043 | response to zinc ion                   | BP  |        2 |  0.04111 |  0.001168 |  0.02439 |
-| GO:0016783 | sulfurtransferase activity             | MF  |        2 |  0.04698 |  0.001455 |   0.0292 |
-| GO:0048471 | perinuclear region of cytoplasm        | CC  |        7 |    1.791 |   0.00198 |  0.03691 |
+| GO:0010359 | regulation of anion channel activity   | BP  |        2 | 0.008853 | 0.0002262 | 0.007544 |
+| GO:0004792 | thiosulfate sulfurtransferase activity | MF  |        2 | 0.008853 | 0.0002262 | 0.007544 |
+| GO:0071294 | cellular response to zinc ion          | BP  |        2 |  0.02656 | 0.0007455 |  0.01906 |
 
-Table: Gene Ontologies considered as enriched amongst the set of 43 genes within 20kb of the significant SNPs. The number of genes matching each term is given in the 'Observed' column.
+Table: Gene Ontologies considered as enriched amongst the set of 65 genes within 20kb of the significant SNPs. The number of genes matching each term is given in the 'Observed' column.
 
 ## Genes within 40kb
 
@@ -421,7 +428,7 @@ sigGenesIn40kb <- subsetByOverlaps(
 ```
 
 The same approach was then repeated for genes within 40kb of each SNP.
-This produced a list of 9636 genes in total, of which 68 overlapped SNPs of interest.
+This produced a list of 9688 genes in total, of which 96 overlapped SNPs of interest.
 
 
 
@@ -434,8 +441,8 @@ go2Test40kb <- ALLGO2ENS %>%
   setdiff(singleGeneGO)
 ```
 
-A set of 754 GO terms mapping to more than one gene, and with at least 4 steps back to the ontology roots were assigned to the genes within 40kb of the 46 candidate SNPs.
-These were then tested for enrichment using the set of genes within 40kb of the remaining 17892 SNPs
+A set of 982 GO terms mapping to more than one gene, and with at least 4 steps back to the ontology roots were assigned to the genes within 40kb of the 65 candidate SNPs.
+These were then tested for enrichment using the set of genes within 40kb of the remaining 18328 SNPs
 
 
 
@@ -465,20 +472,19 @@ goResults40kb <- go2Test40kb %>%
   arrange(p)
 ```
 
-A total of 7 GO terms were considered as enriched using the criteria of an FDR-adjusted p-value < 0.05 and with observed numbers greater than that predicted by the ratio in the non-significant SNP genes.
+A total of 6 GO terms were considered as enriched using the criteria of an FDR-adjusted p-value < 0.05 and with observed numbers greater than that predicted by the ratio in the non-significant SNP genes.
 
 
 | GO ID      | Term                                   | Ont | Observed | Expected |         p |      FDR |
 |:-----------|:---------------------------------------|:----|---------:|---------:|----------:|---------:|
-| GO:0071294 | cellular response to zinc ion          | BP  |        3 |  0.01421 | 3.328e-06 | 0.002509 |
-| GO:0010043 | response to zinc ion                   | BP  |        3 |  0.04264 | 2.739e-05 |  0.01033 |
-| GO:0010359 | regulation of anion channel activity   | BP  |        2 | 0.007107 | 0.0001465 |   0.0221 |
-| GO:0004792 | thiosulfate sulfurtransferase activity | MF  |        2 | 0.007107 | 0.0001465 |   0.0221 |
-| GO:0015793 | glycerol transport                     | BP  |        2 | 0.007107 | 0.0001465 |   0.0221 |
-| GO:0015791 | polyol transport                       | BP  |        2 |  0.01421 | 0.0002918 |  0.03666 |
-| GO:0070295 | renal water absorption                 | BP  |        2 |  0.02132 |  0.000484 |  0.04843 |
+| GO:0071294 | cellular response to zinc ion          | BP  |        3 |  0.02002 | 9.296e-06 | 0.006975 |
+| GO:0010043 | response to zinc ion                   | BP  |        3 |  0.06005 | 7.586e-05 |  0.01862 |
+| GO:0010359 | regulation of anion channel activity   | BP  |        2 |  0.01001 | 0.0002897 |  0.02586 |
+| GO:0004792 | thiosulfate sulfurtransferase activity | MF  |        2 |  0.01001 | 0.0002897 |  0.02586 |
+| GO:0015793 | glycerol transport                     | BP  |        2 |  0.01001 | 0.0002897 |  0.02586 |
+| GO:0015791 | polyol transport                       | BP  |        2 |  0.02002 | 0.0005756 |  0.04348 |
 
-Table: Gene Ontologies considered as enriched amongst the set of 68 genes within 40kb of the significant SNPs. The number of genes matching each term is given in the 'Observed' column.
+Table: Gene Ontologies considered as enriched amongst the set of 96 genes within 40kb of the significant SNPs. The number of genes matching each term is given in the 'Observed' column.
 
 Similar sets of terms were detected at both 20kb and 40kb.
 The appearance of terms connected to the Zinc ion may be of note as the link between zinc and clearance of HCV has recently been established, via the IFN-&#947; pathway
@@ -542,7 +548,7 @@ _LC_CTYPE=en_AU.UTF-8_, _LC_NUMERIC=C_, _LC_TIME=en_AU.UTF-8_, _LC_COLLATE=en_AU
 _parallel_, _stats4_, _stats_, _graphics_, _grDevices_, _utils_, _datasets_, _methods_ and _base_
 
 **other attached packages:** 
-_bindrcpp(v.0.2)_, _reshape2(v.1.4.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _magrittr(v.1.5)_, _GO.db(v.3.5.0)_, _AnnotationDbi(v.1.40.0)_, _Biobase(v.2.38.0)_, _biomaRt(v.2.34.0)_, _rtracklayer(v.1.38.2)_, _GenomicRanges(v.1.30.0)_, _GenomeInfoDb(v.1.14.0)_, _IRanges(v.2.12.0)_, _S4Vectors(v.0.16.0)_, _BiocGenerics(v.0.24.0)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
+_bindrcpp(v.0.2)_, _reshape2(v.1.4.3)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _magrittr(v.1.5)_, _GO.db(v.3.5.0)_, _AnnotationDbi(v.1.40.0)_, _Biobase(v.2.38.0)_, _biomaRt(v.2.34.2)_, _rtracklayer(v.1.38.2)_, _GenomicRanges(v.1.30.1)_, _GenomeInfoDb(v.1.14.0)_, _IRanges(v.2.12.0)_, _S4Vectors(v.0.16.0)_, _BiocGenerics(v.0.24.0)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.4.1)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
 
 **loaded via a namespace (and not attached):** 
-_httr(v.1.3.1)_, _bit64(v.0.9-7)_, _jsonlite(v.1.5)_, _modelr(v.0.1.1)_, _assertthat(v.0.2.0)_, _blob(v.1.1.0)_, _GenomeInfoDbData(v.0.99.1)_, _cellranger(v.1.1.0)_, _Rsamtools(v.1.30.0)_, _progress(v.1.1.2)_, _yaml(v.2.1.15)_, _RSQLite(v.2.0)_, _backports(v.1.1.1)_, _lattice(v.0.20-35)_, _glue(v.1.2.0)_, _digest(v.0.6.12)_, _XVector(v.0.18.0)_, _rvest(v.0.3.2)_, _colorspace(v.1.3-2)_, _htmltools(v.0.3.6)_, _Matrix(v.1.2-12)_, _plyr(v.1.8.4)_, _psych(v.1.7.8)_, _XML(v.3.98-1.9)_, _pkgconfig(v.2.0.1)_, _broom(v.0.4.3)_, _haven(v.1.1.0)_, _zlibbioc(v.1.24.0)_, _BiocParallel(v.1.12.0)_, _SummarizedExperiment(v.1.8.0)_, _lazyeval(v.0.2.1)_, _cli(v.1.0.0)_, _mnormt(v.1.5-5)_, _crayon(v.1.3.4)_, _readxl(v.1.0.0)_, _memoise(v.1.1.0)_, _evaluate(v.0.10.1)_, _nlme(v.3.1-131)_, _xml2(v.1.1.1)_, _foreign(v.0.8-69)_, _prettyunits(v.1.0.2)_, _tools(v.3.4.3)_, _hms(v.0.4.0)_, _matrixStats(v.0.52.2)_, _munsell(v.0.4.3)_, _DelayedArray(v.0.4.1)_, _Biostrings(v.2.46.0)_, _compiler(v.3.4.3)_, _rlang(v.0.1.4)_, _grid(v.3.4.3)_, _RCurl(v.1.95-4.8)_, _rstudioapi(v.0.7)_, _bitops(v.1.0-6)_, _rmarkdown(v.1.8)_, _gtable(v.0.2.0)_, _DBI(v.0.7)_, _R6(v.2.2.2)_, _GenomicAlignments(v.1.14.1)_, _lubridate(v.1.7.1)_, _knitr(v.1.17)_, _bit(v.1.1-12)_, _bindr(v.0.1)_, _rprojroot(v.1.2)_, _stringi(v.1.1.6)_ and _Rcpp(v.0.12.14)_
+_httr(v.1.3.1)_, _bit64(v.0.9-7)_, _jsonlite(v.1.5)_, _modelr(v.0.1.1)_, _assertthat(v.0.2.0)_, _blob(v.1.1.0)_, _GenomeInfoDbData(v.1.0.0)_, _cellranger(v.1.1.0)_, _Rsamtools(v.1.30.0)_, _progress(v.1.1.2)_, _yaml(v.2.1.16)_, _RSQLite(v.2.0)_, _pillar(v.1.1.0)_, _backports(v.1.1.2)_, _lattice(v.0.20-35)_, _glue(v.1.2.0)_, _digest(v.0.6.14)_, _XVector(v.0.18.0)_, _rvest(v.0.3.2)_, _colorspace(v.1.3-2)_, _htmltools(v.0.3.6)_, _Matrix(v.1.2-12)_, _plyr(v.1.8.4)_, _psych(v.1.7.8)_, _XML(v.3.98-1.9)_, _pkgconfig(v.2.0.1)_, _broom(v.0.4.3)_, _haven(v.1.1.1)_, _zlibbioc(v.1.24.0)_, _BiocParallel(v.1.12.0)_, _SummarizedExperiment(v.1.8.1)_, _lazyeval(v.0.2.1)_, _cli(v.1.0.0)_, _mnormt(v.1.5-5)_, _crayon(v.1.3.4)_, _readxl(v.1.0.0)_, _memoise(v.1.1.0)_, _evaluate(v.0.10.1)_, _nlme(v.3.1-131)_, _xml2(v.1.1.1)_, _foreign(v.0.8-69)_, _prettyunits(v.1.0.2)_, _tools(v.3.4.3)_, _hms(v.0.4.0)_, _matrixStats(v.0.52.2)_, _munsell(v.0.4.3)_, _DelayedArray(v.0.4.1)_, _Biostrings(v.2.46.0)_, _compiler(v.3.4.3)_, _rlang(v.0.1.6)_, _grid(v.3.4.3)_, _RCurl(v.1.95-4.10)_, _rstudioapi(v.0.7)_, _bitops(v.1.0-6)_, _rmarkdown(v.1.8)_, _codetools(v.0.2-15)_, _gtable(v.0.2.0)_, _DBI(v.0.7)_, _R6(v.2.2.2)_, _GenomicAlignments(v.1.14.1)_, _lubridate(v.1.7.1)_, _knitr(v.1.18)_, _bit(v.1.1-12)_, _bindr(v.0.1)_, _rprojroot(v.1.3-2)_, _stringi(v.1.1.6)_ and _Rcpp(v.0.12.15)_
