@@ -16,8 +16,8 @@ The dataset consisted of:
 All code is available at https://uofabioinformaticshub.github.io/GumCreek2012/
 
 - [01 Data Pre-processing]
-- [02 Selection of SNPs for Genetic Analysis](scripts/02_snpFiltering)
-- [03 Analysis of Filtered SNPs](scripts/03_snpAnalysis)
-- [04 Association of SNPs with Genes and Gene Ontologies](scripts/04_geneAnalysis)
-- [05 Simulation of Genetic Drift](scripts/05_GeneticDrift)
-- [S1 FLK Analysis](scripts/S1_FLK)
+- [02 Selection of SNPs for Genetic Analysis](https://uofabioinformaticshub.github.io/GumCreek2012/scripts/02_snpFiltering)
+- [03 Analysis of Filtered SNPs](https://uofabioinformaticshub.github.io/GumCreek2012/scripts/03_snpAnalysis)
+- [04 Association of SNPs with Genes and Gene Ontologies](https://uofabioinformaticshub.github.io/GumCreek2012/scripts/04_geneAnalysis)
+- [05 Simulation of Genetic Drift](https://uofabioinformaticshub.github.io/GumCreek2012/scripts/05_GeneticDrift)
+- [S1 FLK Analysis](https://uofabioinformaticshub.github.io/GumCreek2012/scripts/S1_FLK)
