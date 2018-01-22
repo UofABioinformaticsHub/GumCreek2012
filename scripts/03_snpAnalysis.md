@@ -54,7 +54,7 @@ The analysis uses two simple models fully described by Lewis in [Genetic associa
 2. A *multiplicative model* based on **allele counts** in which the impact of a single copy of an allele will be tested.
 
 - Prior to analysis, PCA was performed as a data exploration procedure
-- Models were tested using Fisher's Exact Test to allow for low counts in contingency tables
+- Models were tested using Fisher's Exact Test to allow for low counts in contingency tables more robustly than $\chi^2$ test
 - Multiple testing adjustments were performed using both *Bonferroni's method* and the *Benjamini-Hochberg method* to assess results in the context of both FWER and FDR control.
 
 # Data Setup
@@ -134,7 +134,6 @@ sampleMetadata %<>% left_join(gpsPoints, by = "ID")
 ```
 
 
-
 # Principal Component Analysis
 
 ## Missing Values
@@ -198,9 +197,9 @@ outgroupPCA <- dataForPCA %>%
 ```
 
 The two Gum Creek populations (1996 & 2012) clearly showed differences to the outgroup, however a strong "tail" was noted for some of the 2012 population along PC2.
-
-The samples forming this tail (i.e. PC2 > 5 & PC3 < 0 ) were identified and the collection region for these samples was investigated, using the GPS collection point.
-The vast majority were found to come from the central collection region, and this sub-population was added to the PCA plot.
+Samples were assigned to groups using *k*-means clustering (*k = 3*), with 1996 and 2012 samples further identified within their common cluster.
+The samples classified as forming this tail were identified and the collection region for these samples was investigated, using the GPS collection point.
+The vast majority were found to come from the central collection region, and this sub-population was added to the PCA plot, based on the initial *k*-means clustering.
 
 
 
@@ -254,10 +253,13 @@ fullPlot <- ggplot()+
 ```
 
 
-![Collection points for all 2012 samples with colours showing sub-populations defined by PCA analysis.](03_snpAnalysis_files/figure-html/plotWithInset-1.png)
+![Collection points for all 2012 samples with colours showing sub-populations initially defined by PCA analysis and *k*-means clustering.](03_snpAnalysis_files/figure-html/plotWithInset-1.png)
 
 
 ![Zoomed-in view of the central region for 2012 samples with colours showing sub-populations defined by PCA analysis. The region considered to be the Central Region is shaded in red. Due to overlapping GPS points a small amount of jitter has been added to the x-axis.](03_snpAnalysis_files/figure-html/plotZoom-1.png)
+
+In order to more accurately define samples based on the collection region, 2012 samples located within the bounds of the shaded region above were classed as being from the central region, whilst other 2012 samples were considered as being from the outer region.
+
 
 # Phylogenetic Analysis
 
@@ -695,8 +697,8 @@ _LC_CTYPE=en_AU.UTF-8_, _LC_NUMERIC=C_, _LC_TIME=en_AU.UTF-8_, _LC_COLLATE=en_AU
 _stats4_, _grid_, _parallel_, _stats_, _graphics_, _grDevices_, _utils_, _datasets_, _methods_ and _base_
 
 **other attached packages:** 
-_ape(v.5.0)_, _rtracklayer(v.1.38.2)_, _GenomicRanges(v.1.30.1)_, _GenomeInfoDb(v.1.14.0)_, _IRanges(v.2.12.0)_, _S4Vectors(v.0.16.0)_, _BiocGenerics(v.0.24.0)_, _bindrcpp(v.0.2)_, _rgdal(v.1.2-16)_, _ggmap(v.2.6.1)_, _sp(v.1.2-7)_, _qqman(v.0.1.4)_, _UpSetR(v.1.3.3)_, _magrittr(v.1.5)_, _readxl(v.1.0.0)_, _reshape2(v.1.4.3)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.4.1)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
+_ape(v.5.0)_, _rtracklayer(v.1.38.2)_, _GenomicRanges(v.1.30.0)_, _GenomeInfoDb(v.1.14.0)_, _IRanges(v.2.12.0)_, _S4Vectors(v.0.16.0)_, _BiocGenerics(v.0.24.0)_, _bindrcpp(v.0.2)_, _rgdal(v.1.2-16)_, _ggmap(v.2.6.1)_, _sp(v.1.2-5)_, _qqman(v.0.1.4)_, _UpSetR(v.1.3.3)_, _magrittr(v.1.5)_, _readxl(v.1.0.0)_, _reshape2(v.1.4.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
 
 **loaded via a namespace (and not attached):** 
-_nlme(v.3.1-131)_, _bitops(v.1.0-6)_, _matrixStats(v.0.52.2)_, _lubridate(v.1.7.1)_, _httr(v.1.3.1)_, _rprojroot(v.1.3-2)_, _tools(v.3.4.3)_, _backports(v.1.1.2)_, _R6(v.2.2.2)_, _lazyeval(v.0.2.1)_, _colorspace(v.1.3-2)_, _gridExtra(v.2.3)_, _mnormt(v.1.5-5)_, _compiler(v.3.4.3)_, _cli(v.1.0.0)_, _rvest(v.0.3.2)_, _Biobase(v.2.38.0)_, _xml2(v.1.1.1)_, _DelayedArray(v.0.4.1)_, _labeling(v.0.3)_, _psych(v.1.7.8)_, _digest(v.0.6.14)_, _Rsamtools(v.1.30.0)_, _foreign(v.0.8-69)_, _rmarkdown(v.1.8)_, _XVector(v.0.18.0)_, _jpeg(v.0.1-8)_, _pkgconfig(v.2.0.1)_, _htmltools(v.0.3.6)_, _highr(v.0.6)_, _maps(v.3.2.0)_, _rlang(v.0.1.6)_, _rstudioapi(v.0.7)_, _bindr(v.0.1)_, _jsonlite(v.1.5)_, _BiocParallel(v.1.12.0)_, _RCurl(v.1.95-4.10)_, _GenomeInfoDbData(v.1.0.0)_, _geosphere(v.1.5-7)_, _Matrix(v.1.2-12)_, _Rcpp(v.0.12.15)_, _munsell(v.0.4.3)_, _proto(v.1.0.0)_, _stringi(v.1.1.6)_, _yaml(v.2.1.16)_, _SummarizedExperiment(v.1.8.1)_, _zlibbioc(v.1.24.0)_, _plyr(v.1.8.4)_, _crayon(v.1.3.4)_, _lattice(v.0.20-35)_, _Biostrings(v.2.46.0)_, _haven(v.1.1.1)_, _mapproj(v.1.2-5)_, _hms(v.0.4.0)_, _knitr(v.1.18)_, _pillar(v.1.1.0)_, _rjson(v.0.2.15)_, _XML(v.3.98-1.9)_, _glue(v.1.2.0)_, _evaluate(v.0.10.1)_, _calibrate(v.1.7.2)_, _modelr(v.0.1.1)_, _png(v.0.1-7)_, _RgoogleMaps(v.1.4.1)_, _cellranger(v.1.1.0)_, _gtable(v.0.2.0)_, _assertthat(v.0.2.0)_, _broom(v.0.4.3)_ and _GenomicAlignments(v.1.14.1)_
+_nlme(v.3.1-131)_, _bitops(v.1.0-6)_, _matrixStats(v.0.52.2)_, _lubridate(v.1.7.1)_, _httr(v.1.3.1)_, _rprojroot(v.1.2)_, _tools(v.3.4.3)_, _backports(v.1.1.1)_, _R6(v.2.2.2)_, _lazyeval(v.0.2.1)_, _colorspace(v.1.3-2)_, _gridExtra(v.2.3)_, _mnormt(v.1.5-5)_, _compiler(v.3.4.3)_, _cli(v.1.0.0)_, _rvest(v.0.3.2)_, _Biobase(v.2.38.0)_, _xml2(v.1.1.1)_, _DelayedArray(v.0.4.1)_, _labeling(v.0.3)_, _psych(v.1.7.8)_, _digest(v.0.6.12)_, _Rsamtools(v.1.30.0)_, _foreign(v.0.8-69)_, _rmarkdown(v.1.8)_, _XVector(v.0.18.0)_, _jpeg(v.0.1-8)_, _pkgconfig(v.2.0.1)_, _htmltools(v.0.3.6)_, _highr(v.0.6)_, _maps(v.3.2.0)_, _rlang(v.0.1.4)_, _rstudioapi(v.0.7)_, _bindr(v.0.1)_, _jsonlite(v.1.5)_, _BiocParallel(v.1.12.0)_, _RCurl(v.1.95-4.8)_, _GenomeInfoDbData(v.0.99.1)_, _geosphere(v.1.5-7)_, _Matrix(v.1.2-12)_, _Rcpp(v.0.12.14)_, _munsell(v.0.4.3)_, _proto(v.1.0.0)_, _stringi(v.1.1.6)_, _yaml(v.2.1.15)_, _SummarizedExperiment(v.1.8.0)_, _zlibbioc(v.1.24.0)_, _plyr(v.1.8.4)_, _crayon(v.1.3.4)_, _lattice(v.0.20-35)_, _Biostrings(v.2.46.0)_, _haven(v.1.1.0)_, _mapproj(v.1.2-5)_, _hms(v.0.4.0)_, _knitr(v.1.17)_, _rjson(v.0.2.15)_, _XML(v.3.98-1.9)_, _glue(v.1.2.0)_, _evaluate(v.0.10.1)_, _calibrate(v.1.7.2)_, _modelr(v.0.1.1)_, _png(v.0.1-7)_, _RgoogleMaps(v.1.4.1)_, _cellranger(v.1.1.0)_, _gtable(v.0.2.0)_, _assertthat(v.0.2.0)_, _broom(v.0.4.3)_ and _GenomicAlignments(v.1.14.1)_
 

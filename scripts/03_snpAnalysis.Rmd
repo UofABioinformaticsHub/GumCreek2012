@@ -55,7 +55,7 @@ The analysis uses two simple models fully described by Lewis in [Genetic associa
 2. A *multiplicative model* based on **allele counts** in which the impact of a single copy of an allele will be tested.
 
 - Prior to analysis, PCA was performed as a data exploration procedure
-- Models were tested using Fisher's Exact Test to allow for low counts in contingency tables
+- Models were tested using Fisher's Exact Test to allow for low counts in contingency tables more robustly than $\chi^2$ test
 - Multiple testing adjustments were performed using both *Bonferroni's method* and the *Benjamini-Hochberg method* to assess results in the context of both FWER and FDR control.
 
 # Data Setup
@@ -128,7 +128,6 @@ sampleMetadata %<>% left_join(gpsPoints, by = "ID")
 ```
 
 
-
 # Principal Component Analysis
 
 ## Missing Values
@@ -186,9 +185,9 @@ outgroupPCA <- dataForPCA %>%
 ```
 
 The two Gum Creek populations (1996 & 2012) clearly showed differences to the outgroup, however a strong "tail" was noted for some of the 2012 population along PC2.
-
-The samples forming this tail (i.e. PC2 > 5 & PC3 < 0 ) were identified and the collection region for these samples was investigated, using the GPS collection point.
-The vast majority were found to come from the central collection region, and this sub-population was added to the PCA plot.
+Samples were assigned to groups using *k*-means clustering (*k = 3*), with 1996 and 2012 samples further identified within their common cluster.
+The samples classified as forming this tail were identified and the collection region for these samples was investigated, using the GPS collection point.
+The vast majority were found to come from the central collection region, and this sub-population was added to the PCA plot, based on the initial *k*-means clustering.
 
 
 ```{r pcaForPlot}
@@ -292,7 +291,7 @@ fullPlot <- ggplot()+
 ```
 
 
-```{r plotWithInset, echo = FALSE, fig.cap="Collection points for all 2012 samples with colours showing sub-populations defined by PCA analysis.", fig.height=7, fig.width=8}
+```{r plotWithInset, echo = FALSE, fig.cap="Collection points for all 2012 samples with colours showing sub-populations initially defined by PCA analysis and *k*-means clustering.", fig.height=7, fig.width=8}
 grid.newpage()
 vp1 <- viewport(0.5,0.5, 1, 1)
 vp2 <- viewport(0.25, 0.28, 0.3, 0.3)
@@ -308,9 +307,7 @@ central <- rbind(x = c(138.749, 138.755),
   set_colnames(c("min", "max"))
 get_map(zoomLoc, zoom = 15, maptype = "terrain", source = "google") %>%
   ggmap() +
-  # geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population),
-  #            size = 3) +
-  geom_jitter(data= pcaForPlot, aes(Longitude, Latitude, colour = Population), size = 3, width = 0.0003, height = 0) +
+  geom_jitter(data= pcaForPlot, aes(Longitude, Latitude, colour = Population), size = 3, width = 0.0005, height = 0) +
   geom_rect(xmin = central["x", "min"],
             xmax = central["x", "max"],
             ymin = central["y", "min"],
@@ -325,6 +322,9 @@ get_map(zoomLoc, zoom = 15, maptype = "terrain", source = "google") %>%
   labs(x = "Longitude",
        y = "Latitude")
 ```
+
+In order to more accurately define samples based on the collection region, 2012 samples located within the bounds of the shaded region above were classed as being from the central region, whilst other 2012 samples were considered as being from the outer region.
+
 
 # Phylogenetic Analysis
 
