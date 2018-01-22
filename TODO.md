@@ -1,2 +1,3 @@
 - Linkage Disequilibrium
 - Add phylogeny
+- Change SNPs4phylo to 0/1/2

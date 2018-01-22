@@ -43,13 +43,13 @@ The filtering steps involved are:
 7. Removal of SNPs called by `Stacks` to be in separate tags, but which share identical genomic co-ordinates
 8. Selection of SNPs within 40kb of a gene
 
-`Stacks` identifies `P` (major) and `Q` (minor) alleles within each population, and an additional proessing step was included to ensure the `P` allele in both populations was the SNP determined to be the `P` allele in the 1996 population.
+`Stacks` identifies `P` (major) and `Q` (minor) alleles within each population, and an additional processing step was included to ensure the `P` allele in both populations was the SNP determined to be the `P` allele in the 1996 population.
 
 # Data Setup
 
 #### Genome Setup
 
-Whilst aligned to the RefSeq/NCBI genome build, for compatability with Ensembl gene models, a mapping object was generated from the [RefSeq Assembly Report](ftp://ftp.ncbi.nih.gov/genomes/refseq/vertebrate_mammalian/Oryctolagus_cuniculus/latest_assembly_versions/GCF_000003625.3_OryCun2.0/GCF_000003625.3_OryCun2.0_assembly_report.txt)
+Whilst aligned to the RefSeq/NCBI genome build, for compatibility with Ensembl gene models, a mapping object was generated from the [RefSeq Assembly Report](ftp://ftp.ncbi.nih.gov/genomes/refseq/vertebrate_mammalian/Oryctolagus_cuniculus/latest_assembly_versions/GCF_000003625.3_OryCun2.0/GCF_000003625.3_OryCun2.0_assembly_report.txt)
 
 
 ```r
@@ -244,7 +244,21 @@ nGenes <- snp2GR %>%
 ```
 
 
-This gave the **final total of 20,336 SNPs** for downstream analysis, covering a total of 10,078 genes.
+This gave the **final total of 20,336 SNPs** for downstream analysis, which were within 40kb of a total of 10,078 genes.
+
+## Genomic Coverage After SNP Filtering
+
+
+```r
+winSize <- 1e05
+windows <- tileGenome(seqinfo(snp2GR)[as.character(1:21),], tilewidth = 1e05)
+windowCounts <- countOverlaps(windows, subset(snp2GR, snpID %in% finalSNPs)) 
+```
+
+Using 100kb tiled windows across the autosomes, this final list of SNPs gave 16827 windows without a SNP, and 4534 windows with at least one SNP.
+This means that 21.2% of windows were sampled to a high enough quality using the GBS approach.
+Of the windows with a SNP, the median number of SNPs in each window was 2, with the most densely sampled window containing 31 SNPs.
+This is in comparison to the dataset before filtering of low-quality/duplicate SNPs, in which 55% of the 100kb windows contained at least one SNP.
 
 
 # Correction of P & Q Nucleotides
@@ -351,7 +365,7 @@ close(gzOut)
 ```
 
 This file was then exported as `minorAlleleCounts.tsv.gz`.
-An additional genepop file was created for use with Bayescan and for estimation of effecive population sizes.
+An additional genepop file was created for use with Bayescan and for estimation of effective population sizes.
 
 
 ```r
