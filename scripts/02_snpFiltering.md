@@ -243,8 +243,7 @@ nGenes <- snp2GR %>%
   length()
 ```
 
-
-This gave the **final total of 20,336 SNPs** for downstream analysis, which were within 40kb of a total of 10,078 genes.
+Only SNPs within 40kb of a known gene were then retained, giving the **final total of 20,336 SNPs** for downstream analysis, which potentially provided markers for 10,078 genes.
 
 ## Genomic Coverage After SNP Filtering
 

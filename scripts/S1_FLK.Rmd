@@ -71,7 +71,7 @@ ensGenes <- import.gff3(ensGff, feature.type = "gene", sequenceRegionsAsSeqinfo 
 
 ## Data Loading
 
-The same stacks output as in [2_snpFiltering](2_snpFiltering.md) was loaded, retaining data from the third population (Turretfield).
+The same stacks output as in [02_snpFiltering](02_snpFiltering.md) was loaded, retaining data from the third population (Turretfield).
 
 ```{r allDataFLK}
 allData <- file.path("..", "data", "batch_3.sumstats.tsv.gz") %>%
@@ -216,7 +216,7 @@ testData <-  file.path("..", "data", "filteredSNPs.tsv.gz") %>%
 ```
 
 The set of `r comma(nrow(testData)/2)` SNPs previously obtained for testing after all filtering steps were then tested using the FLK model.
-SNPs previously identified as showing a regional effect in the 2012 population were also removed from FLK analysis.
+(`r length(regionSnps)` SNPs previously identified as showing a regional effect in the 2012 population were removed from FLK analysis.)
 P-values obtained under FLK were adjusted using Bonferroni's method to obtain a set of high-confidence SNPs, then using Benjamini-Hochberg's FDR to provide a larger set for testing of GO enrichment.
 
 ```{r flkResults}

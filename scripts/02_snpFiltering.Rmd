@@ -233,8 +233,7 @@ nGenes <- snp2GR %>%
   length()
 ```
 
-
-This gave the **final total of `r comma(length(finalSNPs))` SNPs** for downstream analysis, which were within 40kb of a total of `r comma(nGenes)` genes.
+Only SNPs within 40kb of a known gene were then retained, giving the **final total of `r comma(length(finalSNPs))` SNPs** for downstream analysis, which potentially provided markers for `r comma(nGenes)` genes.
 
 ## Genomic Coverage After SNP Filtering
 
