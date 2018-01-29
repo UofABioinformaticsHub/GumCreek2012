@@ -1,7 +1,7 @@
 ---
 title: "SNP Filtering"
 author: "Steve Pederson"
-date: "21 September 2017"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document: 
     keep_md: yes
