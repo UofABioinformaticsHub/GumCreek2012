@@ -326,53 +326,7 @@ get_map(zoomLoc, zoom = 15, maptype = "terrain", source = "google") %>%
 In order to more accurately define samples based on the collection region, 2012 samples located within the bounds of the shaded region above were classed as being from the central region, whilst other 2012 samples were considered as being from the outer region.
 
 
-# Phylogenetic Analysis
-
-## Data Export For Generation of Phylogenies
-
-The SNP information for the original `r ncol(minorAlleleCounts)` alleles was then exported for phylogenetic analysis.
-The same subset of `r nrow(pcaForPlot)` samples was used for this analysis as was used for the PCA analysis above.
-
-```{r}
-alleles <- allData %>%
-  dplyr::select(snpID, contains("Nuc")) %>%
-  distinct(snpID, .keep_all = TRUE) %>%
-  rowwise() %>%
-  mutate(AA = paste0(`P Nuc`, `P Nuc`),
-         AB = paste0(`P Nuc`, `Q Nuc`),
-         BB = paste0(`Q Nuc`, `Q Nuc`)) %>%
-  ungroup %>%
-  dplyr::select(snpID, AA, AB, BB) %>%
-  as.data.frame() %>%
-  column_to_rownames("snpID") %>%
-  as.matrix()
-```
-
-```{r}
-gzOut <- file.path("..", "data", "snpForPhylo.tsv.gz") %>% gzfile("w")
-colnames(minorAlleleCounts) %>% 
-  vapply(function(x){
-    alleles[x,  minorAlleleCounts[,x] + 1]
-    }, character(nrow(minorAlleleCounts))) %>%
-  as_data_frame() %>%
-  mutate(sampleID = rownames(minorAlleleCounts)) %>%
-  filter(sampleID %in% pcaForPlot$sampleID) %>%
-  mutate(Population = gsub("gc.+", "Gum Creek (1996)", sampleID),
-         Population = gsub("(TF|Y|pt|tf).+", "Turretfield (2010)", Population),
-         Population = ifelse(sampleID %in% filter(pcaForPlot, grepl("Central", Population))$sampleID,
-                             "Oraparinna Central (2012)", Population),
-         Population = gsub("ora.+", "Oraparinna Outer (2012)", Population),
-         colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
-         colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
-         colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
-         colour = ifelse(grepl("Outer", Population), rgb(0.2, 0.8, 0.2, 0.9), colour)) %>%
-  dplyr::select(sampleID, Population, colour, everything()) %>%
-  write_tsv(gzOut)
-close(gzOut)
-```
-
-
-# Analysis
+# Region Analysis
 
 ## Removal of SNPs Associated with Collection Region
 
@@ -461,6 +415,75 @@ reducedPCA$x %>%
                                  rgb(0.5, 0.5, 1, 0.7))) 
 ```
 
+## Data Export For Generation of Phylogenies
+
+The SNP information for the original `r ncol(minorAlleleCounts)` alleles was then exported for phylogenetic analysis.
+The same subset of `r nrow(pcaForPlot)` samples was used for this analysis as was used for the PCA analysis above.
+
+```{r}
+gzOut <- file.path("..", "data", "snpForPhylo.tsv.gz") %>% gzfile("w")
+minorAlleleCounts %>% 
+  as.data.frame() %>% 
+  rownames_to_column("sampleID") %>%
+  left_join(pcaForPlot) %>%
+  dplyr::select(sampleID, Population, contains("_")) %>%
+  filter(!is.na(Population)) %>%
+  mutate(Population = ifelse(grepl("Oraparinna", Population),
+                         c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
+         colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
+         colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
+         colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
+         colour = ifelse(grepl("Outer", Population), rgb(0.2, 0.8, 0.2, 0.9), colour)) %>%
+  dplyr::select(sampleID, Population, colour, everything()) %>%
+  write_tsv(gzOut)
+close(gzOut)
+```
+
+The same data was also exported subsetting SNPs based on collection region effects.
+
+```{r}
+gzOut <- file.path("..", "data", "regionSnpForPhylo.tsv.gz") %>% gzfile("w")
+minorAlleleCounts %>% 
+  extract(, regionSNPs) %>%
+  as.data.frame() %>% 
+  rownames_to_column("sampleID") %>%
+  left_join(pcaForPlot) %>%
+  dplyr::select(sampleID, Population, contains("_")) %>%
+  filter(!is.na(Population)) %>%
+  mutate(Population = ifelse(grepl("Oraparinna", Population),
+                         c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
+         colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
+         colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
+         colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
+         colour = ifelse(grepl("Outer", Population), rgb(0.2, 0.8, 0.2, 0.9), colour)) %>%
+  dplyr::select(sampleID, Population, colour, everything()) %>%
+  write_tsv(gzOut)
+close(gzOut)
+```
+
+```{r}
+gzOut <- file.path("..", "data", "noRegionSnpForPhylo.tsv.gz") %>% gzfile("w")
+minorAlleleCounts %>% 
+  extract(, setdiff(colnames(.), regionSNPs)) %>%
+  as.data.frame() %>% 
+  rownames_to_column("sampleID") %>%
+  left_join(pcaForPlot) %>%
+  dplyr::select(sampleID, Population, contains("_")) %>%
+  filter(!is.na(Population)) %>%
+  mutate(Population = ifelse(grepl("Oraparinna", Population),
+                         c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
+         colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
+         colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
+         colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
+         colour = ifelse(grepl("Outer", Population), rgb(0.2, 0.8, 0.2, 0.9), colour)) %>%
+  dplyr::select(sampleID, Population, colour, everything()) %>%
+  write_tsv(gzOut)
+close(gzOut)
+```
+
+
+
+# SNP Analysis
 
 ## Genotype Frequency Model
 

@@ -1,7 +1,7 @@
 ---
 title: "SNP Analysis"
 author: "Steve Pederson"
-date: "22 January, 2018"
+date: "29 January, 2018"
 output: 
   html_document: 
     fig_caption: yes
@@ -261,55 +261,7 @@ fullPlot <- ggplot()+
 In order to more accurately define samples based on the collection region, 2012 samples located within the bounds of the shaded region above were classed as being from the central region, whilst other 2012 samples were considered as being from the outer region.
 
 
-# Phylogenetic Analysis
-
-## Data Export For Generation of Phylogenies
-
-The SNP information for the original 20336 alleles was then exported for phylogenetic analysis.
-The same subset of 135 samples was used for this analysis as was used for the PCA analysis above.
-
-
-```r
-alleles <- allData %>%
-  dplyr::select(snpID, contains("Nuc")) %>%
-  distinct(snpID, .keep_all = TRUE) %>%
-  rowwise() %>%
-  mutate(AA = paste0(`P Nuc`, `P Nuc`),
-         AB = paste0(`P Nuc`, `Q Nuc`),
-         BB = paste0(`Q Nuc`, `Q Nuc`)) %>%
-  ungroup %>%
-  dplyr::select(snpID, AA, AB, BB) %>%
-  as.data.frame() %>%
-  column_to_rownames("snpID") %>%
-  as.matrix()
-```
-
-
-```r
-gzOut <- file.path("..", "data", "snpForPhylo.tsv.gz") %>% gzfile("w")
-colnames(minorAlleleCounts) %>% 
-  vapply(function(x){
-    alleles[x,  minorAlleleCounts[,x] + 1]
-    }, character(nrow(minorAlleleCounts))) %>%
-  as_data_frame() %>%
-  mutate(sampleID = rownames(minorAlleleCounts)) %>%
-  filter(sampleID %in% pcaForPlot$sampleID) %>%
-  mutate(Population = gsub("gc.+", "Gum Creek (1996)", sampleID),
-         Population = gsub("(TF|Y|pt|tf).+", "Turretfield (2010)", Population),
-         Population = ifelse(sampleID %in% filter(pcaForPlot, grepl("Central", Population))$sampleID,
-                             "Oraparinna Central (2012)", Population),
-         Population = gsub("ora.+", "Oraparinna Outer (2012)", Population),
-         colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
-         colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
-         colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
-         colour = ifelse(grepl("Outer", Population), rgb(0.2, 0.8, 0.2, 0.9), colour)) %>%
-  dplyr::select(sampleID, Population, colour, everything()) %>%
-  write_tsv(gzOut)
-close(gzOut)
-```
-
-
-# Analysis
+# Region Analysis
 
 ## Removal of SNPs Associated with Collection Region
 
@@ -382,6 +334,78 @@ reducedPCA <- dataForPCA %>%
 
 ![Principal Component Analysis after removal of SNPs showing evidence of structure within the 2012 population.](03_snpAnalysis_files/figure-html/plotReducedPCA-1.png)
 
+## Data Export For Generation of Phylogenies
+
+The SNP information for the original 20336 alleles was then exported for phylogenetic analysis.
+The same subset of 135 samples was used for this analysis as was used for the PCA analysis above.
+
+
+```r
+gzOut <- file.path("..", "data", "snpForPhylo.tsv.gz") %>% gzfile("w")
+minorAlleleCounts %>% 
+  as.data.frame() %>% 
+  rownames_to_column("sampleID") %>%
+  left_join(pcaForPlot) %>%
+  dplyr::select(sampleID, Population, contains("_")) %>%
+  filter(!is.na(Population)) %>%
+  mutate(Population = ifelse(grepl("Oraparinna", Population),
+                         c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
+         colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
+         colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
+         colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
+         colour = ifelse(grepl("Outer", Population), rgb(0.2, 0.8, 0.2, 0.9), colour)) %>%
+  dplyr::select(sampleID, Population, colour, everything()) %>%
+  write_tsv(gzOut)
+close(gzOut)
+```
+
+The same data was also exported subsetting SNPs based on collection region effects.
+
+
+```r
+gzOut <- file.path("..", "data", "regionSnpForPhylo.tsv.gz") %>% gzfile("w")
+minorAlleleCounts %>% 
+  extract(, regionSNPs) %>%
+  as.data.frame() %>% 
+  rownames_to_column("sampleID") %>%
+  left_join(pcaForPlot) %>%
+  dplyr::select(sampleID, Population, contains("_")) %>%
+  filter(!is.na(Population)) %>%
+  mutate(Population = ifelse(grepl("Oraparinna", Population),
+                         c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
+         colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
+         colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
+         colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
+         colour = ifelse(grepl("Outer", Population), rgb(0.2, 0.8, 0.2, 0.9), colour)) %>%
+  dplyr::select(sampleID, Population, colour, everything()) %>%
+  write_tsv(gzOut)
+close(gzOut)
+```
+
+
+```r
+gzOut <- file.path("..", "data", "noRegionSnpForPhylo.tsv.gz") %>% gzfile("w")
+minorAlleleCounts %>% 
+  extract(, setdiff(colnames(.), regionSNPs)) %>%
+  as.data.frame() %>% 
+  rownames_to_column("sampleID") %>%
+  left_join(pcaForPlot) %>%
+  dplyr::select(sampleID, Population, contains("_")) %>%
+  filter(!is.na(Population)) %>%
+  mutate(Population = ifelse(grepl("Oraparinna", Population),
+                         c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
+         colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
+         colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
+         colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
+         colour = ifelse(grepl("Outer", Population), rgb(0.2, 0.8, 0.2, 0.9), colour)) %>%
+  dplyr::select(sampleID, Population, colour, everything()) %>%
+  write_tsv(gzOut)
+close(gzOut)
+```
+
+
+
+# SNP Analysis
 
 ## Genotype Frequency Model
 
@@ -697,8 +721,8 @@ _LC_CTYPE=en_AU.UTF-8_, _LC_NUMERIC=C_, _LC_TIME=en_AU.UTF-8_, _LC_COLLATE=en_AU
 _stats4_, _grid_, _parallel_, _stats_, _graphics_, _grDevices_, _utils_, _datasets_, _methods_ and _base_
 
 **other attached packages:** 
-_ape(v.5.0)_, _rtracklayer(v.1.38.2)_, _GenomicRanges(v.1.30.0)_, _GenomeInfoDb(v.1.14.0)_, _IRanges(v.2.12.0)_, _S4Vectors(v.0.16.0)_, _BiocGenerics(v.0.24.0)_, _bindrcpp(v.0.2)_, _rgdal(v.1.2-16)_, _ggmap(v.2.6.1)_, _sp(v.1.2-5)_, _qqman(v.0.1.4)_, _UpSetR(v.1.3.3)_, _magrittr(v.1.5)_, _readxl(v.1.0.0)_, _reshape2(v.1.4.2)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.3.4)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
+_ape(v.5.0)_, _rtracklayer(v.1.38.3)_, _GenomicRanges(v.1.30.1)_, _GenomeInfoDb(v.1.14.0)_, _IRanges(v.2.12.0)_, _S4Vectors(v.0.16.0)_, _BiocGenerics(v.0.24.0)_, _bindrcpp(v.0.2)_, _rgdal(v.1.2-16)_, _ggmap(v.2.6.1)_, _sp(v.1.2-7)_, _qqman(v.0.1.4)_, _UpSetR(v.1.3.3)_, _magrittr(v.1.5)_, _readxl(v.1.0.0)_, _reshape2(v.1.4.3)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.4.2)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
 
 **loaded via a namespace (and not attached):** 
-_nlme(v.3.1-131)_, _bitops(v.1.0-6)_, _matrixStats(v.0.52.2)_, _lubridate(v.1.7.1)_, _httr(v.1.3.1)_, _rprojroot(v.1.2)_, _tools(v.3.4.3)_, _backports(v.1.1.1)_, _R6(v.2.2.2)_, _lazyeval(v.0.2.1)_, _colorspace(v.1.3-2)_, _gridExtra(v.2.3)_, _mnormt(v.1.5-5)_, _compiler(v.3.4.3)_, _cli(v.1.0.0)_, _rvest(v.0.3.2)_, _Biobase(v.2.38.0)_, _xml2(v.1.1.1)_, _DelayedArray(v.0.4.1)_, _labeling(v.0.3)_, _psych(v.1.7.8)_, _digest(v.0.6.12)_, _Rsamtools(v.1.30.0)_, _foreign(v.0.8-69)_, _rmarkdown(v.1.8)_, _XVector(v.0.18.0)_, _jpeg(v.0.1-8)_, _pkgconfig(v.2.0.1)_, _htmltools(v.0.3.6)_, _highr(v.0.6)_, _maps(v.3.2.0)_, _rlang(v.0.1.4)_, _rstudioapi(v.0.7)_, _bindr(v.0.1)_, _jsonlite(v.1.5)_, _BiocParallel(v.1.12.0)_, _RCurl(v.1.95-4.8)_, _GenomeInfoDbData(v.0.99.1)_, _geosphere(v.1.5-7)_, _Matrix(v.1.2-12)_, _Rcpp(v.0.12.14)_, _munsell(v.0.4.3)_, _proto(v.1.0.0)_, _stringi(v.1.1.6)_, _yaml(v.2.1.15)_, _SummarizedExperiment(v.1.8.0)_, _zlibbioc(v.1.24.0)_, _plyr(v.1.8.4)_, _crayon(v.1.3.4)_, _lattice(v.0.20-35)_, _Biostrings(v.2.46.0)_, _haven(v.1.1.0)_, _mapproj(v.1.2-5)_, _hms(v.0.4.0)_, _knitr(v.1.17)_, _rjson(v.0.2.15)_, _XML(v.3.98-1.9)_, _glue(v.1.2.0)_, _evaluate(v.0.10.1)_, _calibrate(v.1.7.2)_, _modelr(v.0.1.1)_, _png(v.0.1-7)_, _RgoogleMaps(v.1.4.1)_, _cellranger(v.1.1.0)_, _gtable(v.0.2.0)_, _assertthat(v.0.2.0)_, _broom(v.0.4.3)_ and _GenomicAlignments(v.1.14.1)_
+_nlme(v.3.1-131)_, _bitops(v.1.0-6)_, _matrixStats(v.0.53.0)_, _lubridate(v.1.7.1)_, _httr(v.1.3.1)_, _rprojroot(v.1.3-2)_, _tools(v.3.4.3)_, _backports(v.1.1.2)_, _R6(v.2.2.2)_, _lazyeval(v.0.2.1)_, _colorspace(v.1.3-2)_, _gridExtra(v.2.3)_, _mnormt(v.1.5-5)_, _compiler(v.3.4.3)_, _cli(v.1.0.0)_, _rvest(v.0.3.2)_, _Biobase(v.2.38.0)_, _xml2(v.1.2.0)_, _DelayedArray(v.0.4.1)_, _labeling(v.0.3)_, _psych(v.1.7.8)_, _digest(v.0.6.14)_, _Rsamtools(v.1.30.0)_, _foreign(v.0.8-69)_, _rmarkdown(v.1.8)_, _XVector(v.0.18.0)_, _jpeg(v.0.1-8)_, _pkgconfig(v.2.0.1)_, _htmltools(v.0.3.6)_, _highr(v.0.6)_, _maps(v.3.2.0)_, _rlang(v.0.1.6)_, _rstudioapi(v.0.7)_, _bindr(v.0.1)_, _jsonlite(v.1.5)_, _BiocParallel(v.1.12.0)_, _RCurl(v.1.95-4.10)_, _GenomeInfoDbData(v.1.0.0)_, _geosphere(v.1.5-7)_, _Matrix(v.1.2-12)_, _Rcpp(v.0.12.15)_, _munsell(v.0.4.3)_, _proto(v.1.0.0)_, _stringi(v.1.1.6)_, _yaml(v.2.1.16)_, _SummarizedExperiment(v.1.8.1)_, _zlibbioc(v.1.24.0)_, _plyr(v.1.8.4)_, _crayon(v.1.3.4)_, _lattice(v.0.20-35)_, _Biostrings(v.2.46.0)_, _haven(v.1.1.1)_, _mapproj(v.1.2-5)_, _hms(v.0.4.1)_, _knitr(v.1.18)_, _pillar(v.1.1.0)_, _rjson(v.0.2.15)_, _XML(v.3.98-1.9)_, _glue(v.1.2.0)_, _evaluate(v.0.10.1)_, _calibrate(v.1.7.2)_, _modelr(v.0.1.1)_, _png(v.0.1-7)_, _RgoogleMaps(v.1.4.1)_, _cellranger(v.1.1.0)_, _gtable(v.0.2.0)_, _assertthat(v.0.2.0)_, _broom(v.0.4.3)_ and _GenomicAlignments(v.1.14.1)_
 
