@@ -460,6 +460,30 @@ goResults40kb %>%
 Similar sets of terms were detected at both 20kb and 40kb.
 The appearance of terms connected to the Zinc ion may be of note as the link between zinc and clearance of HCV has recently been established, via the IFN-&#947; pathway
 
+The genes associated with each of these GO terms is given below:
+
+```{r, echo=FALSE}
+goResults40kb %>%
+    filter(observed > expected, FDR < 0.05) %>% 
+  dplyr::select(go_id) %>% 
+  left_join(ALLGO2ENS) %>% 
+  mutate(Term = Term(go_id)) %>% 
+  left_join(as.data.frame(ensGenes),
+            by = c("ensembl_gene_id" = "gene_id")) %>%
+  dplyr::select(go_id, Term, ensembl_gene_id, Name) %>%
+  as.data.frame() %>% 
+  mutate(go_id = ifelse(duplicated(go_id), "", go_id),
+         Term = ifelse(duplicated(Term), "", Term),
+         Name = ifelse(is.na(Name), "", Name)) %>%
+  dplyr::rename(`GO ID` = go_id,
+         `Gene ID` = ensembl_gene_id) %>%
+  pander(justify = "llll",
+         split.cells = Inf,
+         split.table = Inf,
+         caption = "Genes associated wth each enriched GO term")
+```
+
+
 ### Export of Results
 
 The set of genes within 40kb of each SNP of interest were then exported.

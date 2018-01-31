@@ -1,7 +1,7 @@
 ---
 title: "Analysis Of Genes Associated With Significant SNPs"
 author: "Steve Pederson"
-date: "22 January, 2018"
+date: "01 February, 2018"
 output: 
   html_document: 
     fig_caption: yes
@@ -489,6 +489,70 @@ Table: Gene Ontologies considered as enriched amongst the set of 96 genes within
 Similar sets of terms were detected at both 20kb and 40kb.
 The appearance of terms connected to the Zinc ion may be of note as the link between zinc and clearance of HCV has recently been established, via the IFN-&#947; pathway
 
+The genes associated with each of these GO terms is given below:
+
+
+------------------------------------------------------------------------------------
+GO ID        Term                                     Gene ID              Name     
+------------ ---------------------------------------- -------------------- ---------
+GO:0071294   cellular response to zinc ion            ENSOCUG00000005427   CREB1    
+
+                                                      ENSOCUG00000011941   HVCN1    
+
+                                                      ENSOCUG00000021126            
+
+                                                      ENSOCUG00000021209            
+
+                                                      ENSOCUG00000029235            
+
+GO:0010043   response to zinc ion                     ENSOCUG00000000422   ZACN     
+
+                                                      ENSOCUG00000005427   CREB1    
+
+                                                      ENSOCUG00000008823   P2RX7    
+
+                                                      ENSOCUG00000010472   SLC30A5  
+
+                                                      ENSOCUG00000011941   HVCN1    
+
+                                                      ENSOCUG00000015827   HAAO     
+
+                                                      ENSOCUG00000021126            
+
+                                                      ENSOCUG00000021209            
+
+                                                      ENSOCUG00000029235            
+
+GO:0010359   regulation of anion channel activity     ENSOCUG00000002065   TCAF1    
+
+                                                      ENSOCUG00000002072   TCAF2    
+
+                                                      ENSOCUG00000010733   CFTR     
+
+GO:0004792   thiosulfate sulfurtransferase activity   ENSOCUG00000017755   MPST     
+
+                                                      ENSOCUG00000022637            
+
+                                                      ENSOCUG00000025894   TST      
+
+GO:0015793   glycerol transport                       ENSOCUG00000004635   AQP2     
+
+                                                      ENSOCUG00000017851            
+
+                                                      ENSOCUG00000017852   AQP3     
+
+GO:0015791   polyol transport                         ENSOCUG00000004635   AQP2     
+
+                                                      ENSOCUG00000009796   AQP9     
+
+                                                      ENSOCUG00000017851            
+
+                                                      ENSOCUG00000017852   AQP3     
+------------------------------------------------------------------------------------
+
+Table: Genes associated wth each enriched GO term
+
+
 ### Export of Results
 
 The set of genes within 40kb of each SNP of interest were then exported.
@@ -551,4 +615,4 @@ _parallel_, _stats4_, _stats_, _graphics_, _grDevices_, _utils_, _datasets_, _me
 _bindrcpp(v.0.2)_, _reshape2(v.1.4.3)_, _scales(v.0.5.0)_, _pander(v.0.6.1)_, _magrittr(v.1.5)_, _GO.db(v.3.5.0)_, _AnnotationDbi(v.1.40.0)_, _Biobase(v.2.38.0)_, _biomaRt(v.2.34.2)_, _rtracklayer(v.1.38.2)_, _GenomicRanges(v.1.30.1)_, _GenomeInfoDb(v.1.14.0)_, _IRanges(v.2.12.0)_, _S4Vectors(v.0.16.0)_, _BiocGenerics(v.0.24.0)_, _forcats(v.0.2.0)_, _stringr(v.1.2.0)_, _dplyr(v.0.7.4)_, _purrr(v.0.2.4)_, _readr(v.1.1.1)_, _tidyr(v.0.7.2)_, _tibble(v.1.4.1)_, _ggplot2(v.2.2.1)_ and _tidyverse(v.1.2.1)_
 
 **loaded via a namespace (and not attached):** 
-_httr(v.1.3.1)_, _bit64(v.0.9-7)_, _jsonlite(v.1.5)_, _modelr(v.0.1.1)_, _assertthat(v.0.2.0)_, _blob(v.1.1.0)_, _GenomeInfoDbData(v.1.0.0)_, _cellranger(v.1.1.0)_, _Rsamtools(v.1.30.0)_, _progress(v.1.1.2)_, _yaml(v.2.1.16)_, _RSQLite(v.2.0)_, _pillar(v.1.1.0)_, _backports(v.1.1.2)_, _lattice(v.0.20-35)_, _glue(v.1.2.0)_, _digest(v.0.6.14)_, _XVector(v.0.18.0)_, _rvest(v.0.3.2)_, _colorspace(v.1.3-2)_, _htmltools(v.0.3.6)_, _Matrix(v.1.2-12)_, _plyr(v.1.8.4)_, _psych(v.1.7.8)_, _XML(v.3.98-1.9)_, _pkgconfig(v.2.0.1)_, _broom(v.0.4.3)_, _haven(v.1.1.1)_, _zlibbioc(v.1.24.0)_, _BiocParallel(v.1.12.0)_, _SummarizedExperiment(v.1.8.1)_, _lazyeval(v.0.2.1)_, _cli(v.1.0.0)_, _mnormt(v.1.5-5)_, _crayon(v.1.3.4)_, _readxl(v.1.0.0)_, _memoise(v.1.1.0)_, _evaluate(v.0.10.1)_, _nlme(v.3.1-131)_, _xml2(v.1.1.1)_, _foreign(v.0.8-69)_, _prettyunits(v.1.0.2)_, _tools(v.3.4.3)_, _hms(v.0.4.0)_, _matrixStats(v.0.52.2)_, _munsell(v.0.4.3)_, _DelayedArray(v.0.4.1)_, _Biostrings(v.2.46.0)_, _compiler(v.3.4.3)_, _rlang(v.0.1.6)_, _grid(v.3.4.3)_, _RCurl(v.1.95-4.10)_, _rstudioapi(v.0.7)_, _bitops(v.1.0-6)_, _rmarkdown(v.1.8)_, _codetools(v.0.2-15)_, _gtable(v.0.2.0)_, _DBI(v.0.7)_, _R6(v.2.2.2)_, _GenomicAlignments(v.1.14.1)_, _lubridate(v.1.7.1)_, _knitr(v.1.18)_, _bit(v.1.1-12)_, _bindr(v.0.1)_, _rprojroot(v.1.3-2)_, _stringi(v.1.1.6)_ and _Rcpp(v.0.12.15)_
+_httr(v.1.3.1)_, _bit64(v.0.9-7)_, _jsonlite(v.1.5)_, _modelr(v.0.1.1)_, _assertthat(v.0.2.0)_, _blob(v.1.1.0)_, _GenomeInfoDbData(v.1.0.0)_, _cellranger(v.1.1.0)_, _Rsamtools(v.1.30.0)_, _progress(v.1.1.2)_, _yaml(v.2.1.16)_, _RSQLite(v.2.0)_, _pillar(v.1.1.0)_, _backports(v.1.1.2)_, _lattice(v.0.20-35)_, _glue(v.1.2.0)_, _digest(v.0.6.14)_, _XVector(v.0.18.0)_, _rvest(v.0.3.2)_, _colorspace(v.1.3-2)_, _htmltools(v.0.3.6)_, _Matrix(v.1.2-12)_, _plyr(v.1.8.4)_, _psych(v.1.7.8)_, _XML(v.3.98-1.9)_, _pkgconfig(v.2.0.1)_, _broom(v.0.4.3)_, _haven(v.1.1.1)_, _zlibbioc(v.1.24.0)_, _BiocParallel(v.1.12.0)_, _SummarizedExperiment(v.1.8.1)_, _lazyeval(v.0.2.1)_, _cli(v.1.0.0)_, _mnormt(v.1.5-5)_, _crayon(v.1.3.4)_, _readxl(v.1.0.0)_, _memoise(v.1.1.0)_, _evaluate(v.0.10.1)_, _nlme(v.3.1-131)_, _xml2(v.1.1.1)_, _foreign(v.0.8-69)_, _prettyunits(v.1.0.2)_, _tools(v.3.4.3)_, _hms(v.0.4.0)_, _matrixStats(v.0.52.2)_, _munsell(v.0.4.3)_, _DelayedArray(v.0.4.1)_, _Biostrings(v.2.46.0)_, _compiler(v.3.4.3)_, _rlang(v.0.1.6)_, _grid(v.3.4.3)_, _RCurl(v.1.95-4.10)_, _rstudioapi(v.0.7)_, _bitops(v.1.0-6)_, _rmarkdown(v.1.8)_, _gtable(v.0.2.0)_, _DBI(v.0.7)_, _R6(v.2.2.2)_, _GenomicAlignments(v.1.14.1)_, _lubridate(v.1.7.1)_, _knitr(v.1.18)_, _bit(v.1.1-12)_, _bindr(v.0.1)_, _rprojroot(v.1.3-2)_, _stringi(v.1.1.6)_ and _Rcpp(v.0.12.15)_
