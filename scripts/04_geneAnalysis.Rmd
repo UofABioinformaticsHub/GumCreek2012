@@ -7,7 +7,6 @@ output:
     fig_caption: yes
     fig_height: 8
     fig_width: 10
-    keep_md: yes
     toc: yes
     toc_depth: 2
 ---
