@@ -7,7 +7,6 @@ output:
     fig_caption: yes
     fig_height: 8
     fig_width: 10
-    keep_md: yes
     toc: yes
     toc_depth: 2
 ---
@@ -39,6 +38,11 @@ nCores <- min(12, detectCores() - 1)
 logit <- binomial()$linkfun
 alpha <- 0.05
 theme_set(theme_bw())
+```
+
+```{r}
+w <- 169/25.4
+h <- 169/25.4
 ```
 
 
@@ -212,65 +216,102 @@ getRegions <- pcaForPlot %>%
   mutate(Region = c("Central", "Outer")[(maxY == max(maxY)) + 1])
 pcaForPlot %<>% 
   left_join(getRegions) %>%
-  mutate(Population = ifelse(grepl("Oraparinna", Population), 
-                             paste("Oraparinna", Region, "(2012)"), Population))
+  mutate(Population = gsub(".+\\(([0-9]+)\\)", "\\1", Population),
+         Population = ifelse(grepl("2012", Population), 
+                             paste0("2012 (", Region, ")"), Population)) 
 ```
 
-```{r finalPCA, echo = FALSE, fig.cap = "PCA for all samples including the outgroup and indicating the sample collection region for the 2012 samples."}
+
+```{r finalPCA, echo = FALSE, results='hide'}
+pdf(file.path("..", "figures", "Figure1.pdf"), width = w, height = h) 
+fs <- 14
+ps <- 3
+popCols <- c(rgb(0, 0, 0, 0.7), 
+             rgb(0.5, 0.5, 1, 0.7),
+             rgb(0.8, 0.2, 0.2, 0.9), 
+             rgb(0.2, 0.8, 0.2, 0.9))
 p12 <- ggplot(pcaForPlot, aes(PC1, PC2, colour = Population)) +
-  geom_point(size = 3) +
-  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.2, 0.9),
-                                 rgb(0.2, 0.8, 0.2, 0.9),
-                                 rgb(0.5, 0.5, 1, 0.7))) +
-  theme(text = element_text(size = 12))
+  geom_point(size = ps) +
+  scale_colour_manual(values = popCols) +
+  theme(text = element_text(size = fs),
+        title = element_text(size = fs),
+        plot.margin = unit(c(1, 1, 1, 1)*1.5, "mm"),
+        legend.key.height = unit(7, "mm"))
 p13 <- ggplot(pcaForPlot, aes(PC1, PC3, colour = Population)) +
-  geom_point(size = 3) +
-  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.2, 0.9),
-                                 rgb(0.2, 0.8, 0.2, 0.9),
-                                 rgb(0.5, 0.5, 1, 0.7))) +
-  theme(text = element_text(size = 12),
+  geom_point(size = ps) +
+  scale_colour_manual(values = popCols) +
+  theme(text = element_text(size = fs),
+        title = element_text(size = fs),
+        plot.margin = unit(c(1, 1, 1, 1)*1.5, "mm"),
         legend.position = "none")
 p23 <- ggplot(pcaForPlot, aes(PC2, PC3, colour = Population)) +
-  geom_point(size = 3) +
-  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.2, 0.9),
-                                 rgb(0.2, 0.8, 0.2, 0.9),
-                                 rgb(0.5, 0.5, 1, 0.7))) +
-  theme(text = element_text(size = 12),
+  geom_point(size = ps) +
+  scale_colour_manual(values = popCols) +
+  theme(text = element_text(size = fs),
+        title = element_text(size = fs),
+        plot.margin = unit(c(1, 1, 1, 1)*1.5, "mm"),
         legend.position = "none")
-vp12 <- viewport(0, 0, 0.71, 0.5, just = c(0, 0))
+vp12 <- viewport(0, 0, 0.735, 0.5, just = c(0, 0))
 vp13 <- viewport(0, 0.5, 0.5, 0.5, just = c(0, 0))
 vp23 <- viewport(0.5, 0.5, 0.5, 0.5, just = c(0, 0))
 grid.newpage()
 print(p12, vp = vp12)
 print(p13, vp = vp13)
 print(p23, vp = vp23)
+dev.off()
+```
+
+```{bash, echo = FALSE}
+# Convert the pdf to png for embedding into the html
+convert \
+  -density 600 \
+  -size 1920 \
+  ../figures/Figure1.pdf \
+  ../figures/Figure1.png
 ```
 
 
-```{r map1, echo=FALSE}
+```{r finalPCA_png, echo = FALSE, fig.cap = "Figure 1: PCA for all samples including the outgroup and indicating the sample collection region for the 2012 samples.", out.width='80%'}
+knitr::include_graphics(file.path("..", "figures", "Figure1.png"))
+```
+
+```{r setupAnnotations}
+gc <- SpatialPoints(cbind(x = 138.655972, y = -31.200305))
+proj4string(gc) <- "+proj=longlat +ellps=GRS80 +no_defs"
+saPoly <-  file.path("..", "60804_shp", "Gazeteer") %>%
+  readOGR(layer = "GazetteerAreas") 
+proj4string(saPoly) <- proj4string(gc)
+```
+
+```{r ggMap, echo=FALSE, cache=TRUE}
 loc <- c(range(sampleMetadata$Longitude) %>% mean,
          range(sampleMetadata$Latitude) %>% mean)
 ggMap <- get_map(loc, zoom = 12, maptype = "terrain", source = "google")
+```
+
+```{r mainMap}
 zoomPlot <- ggmap(ggMap, extent = "normal", maprange = FALSE) +
-  geom_text(x = loc[1], y = -31.29, 
-            aes(label = "Flinders Ranges NP"),
-            colour = "grey10", size = 4) +
-  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population),
-             size = 2.5) +
-  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.2, 0.9),
-                                 rgb(0.2, 0.8, 0.2, 0.9),
-                                 rgb(0.5, 0.5, 1, 0.7))) +
-  coord_map(xlim=c(attr(ggMap, "bb")$ll.lon, attr(ggMap, "bb")$ur.lon),
-            ylim=c(-31.33, -31.18)) +
+  geom_text(x = 138.74, y = -31.29, 
+            aes(label = "Flinders Ranges NP"), colour = "grey10") +
+  geom_text(aes(x, y, label = "Gum Creek Homestead"),
+            data = as.data.frame(gc), nudge_y = 0.005) +
+  geom_point(aes(x, y), data = as.data.frame(gc)) +
+  geom_polygon(data = subset(saPoly, F_CODE == "HD"),
+               aes(long, lat, group = group),
+               fill = rgb(1, 1, 1, 0), colour = "grey10", size = 0.2) +
+  geom_polygon(data = subset(saPoly, F_CODE == "PARK"),
+               aes(long, lat, group = group),
+               fill = rgb(1, 1, 1, 0), colour = "grey10", size = 0.1) +
+  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population), size = ps) +
+  scale_colour_manual(values = popCols) +
+  coord_map(xlim=c(138.618, 138.81),
+            ylim=c(-31.335, -31.18)) +
   guides(colour = FALSE) +
   labs(x = "Longitude",
        y = "Latitude") +
-    theme_bw() +
-  theme(text = element_text(size = 11))
+  theme_bw() +
+  theme(text = element_text(size = fs),
+        plot.margin = unit(c(1, 1, 1, 1), "mm"))
 ```
 
 ```{r fullAusMap, results='hide'}
@@ -279,24 +320,40 @@ ausPolygon <- file.path("..", "60804_shp", "framework") %>%
   subset(AREA > 6)
 ausPts <- SpatialPoints(cbind(x = loc[1], y = loc[2]))
 proj4string(ausPts) <- proj4string(ausPolygon)
-fullPlot <- ggplot()+
+ausPlot <- ggplot()+
   geom_polygon(data=ausPolygon, 
                aes(long, lat, group = group), fill = "white", colour = "black") + 
-  geom_point(data = as.data.frame(ausPts), aes(x, y), size = 3) +
+  geom_point(data = as.data.frame(ausPts), aes(x, y), size = 1.5) +
   theme_bw() +
   theme(panel.grid = element_blank(),
         axis.title = element_blank(),
         axis.text = element_blank(),
-        axis.ticks = element_blank())
+        axis.ticks = element_blank(),
+        plot.margin = unit(c(0, 0, 0, 0), "mm"))
 ```
 
 
-```{r plotWithInset, echo = FALSE, fig.cap="Collection points for all 2012 samples with colours showing sub-populations initially defined by PCA analysis and *k*-means clustering.", fig.height=7, fig.width=8}
+```{r plotWithInset, echo = FALSE, results='hide', fig.height=7, fig.width=8}
+pdf(file.path("..", "figures", "Figure2.pdf"),width = w, height = h) 
 grid.newpage()
 vp1 <- viewport(0.5,0.5, 1, 1)
-vp2 <- viewport(0.25, 0.28, 0.3, 0.3)
+vp2 <- viewport(0.315, 0.3, 0.33, 0.33)
 print(zoomPlot, vp = vp1)
-print(fullPlot, vp = vp2)
+print(ausPlot, vp = vp2)
+dev.off()
+```
+
+```{bash, echo = FALSE}
+convert \
+  -density 600 \
+  -size 1920 \
+  ../figures/Figure2.pdf \
+  ../figures/Figure2.png
+```
+
+
+```{r plotWithInset_png, echo = FALSE, fig.cap="Figure 2: Collection points for all 2012 samples with colours showing sub-populations initially defined by PCA analysis and *k*-means clustering.", out.width='80%'}
+knitr::include_graphics(file.path("..", "figures", "Figure2.png"))
 ```
 
 
@@ -313,10 +370,7 @@ get_map(zoomLoc, zoom = 15, maptype = "terrain", source = "google") %>%
             ymin = central["y", "min"],
             ymax = central["y", "max"],
             fill = "red", alpha = 0.05) +
-  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.2, 0.9),
-                                 rgb(0.2, 0.8, 0.2, 0.9),
-                                 rgb(0.5, 0.5, 1, 0.7))) +
+  scale_colour_manual(values = popCols) +
   theme_bw() +
   guides(colour = FALSE) +
   labs(x = "Longitude",
@@ -401,18 +455,14 @@ reducedPCA$x %>%
   dplyr::select(sampleID, PC1, PC2, PC3) %>%
   mutate(Population = allelePops[sampleID]) %>%
   rowwise() %>%
-  mutate(Population = if_else(Population == "gc", "Gum Creek (1996)",
-                              if_else(Population == "ora", "Oraparinna (2012)", "Turretfield (2010)"))) %>%
   left_join(sampleMetadata, by = c("sampleID" = "ID")) %>%
   mutate(Central = sampleID %in% filter(pcaForPlot, grepl("Central", Population))$sampleID,
-         Population = if_else(Population == "Oraparinna (2012)",
-                              if_else(Central, "Oraparinna Central (2012)", "Oraparinna Outer (2012)" ), Population)) %>%
+         Population = as.character(Population),
+         Population = if_else(grepl("[Oo]ra", Population), 
+                              if_else(Central, "2012 (Central)", "2012 (Outer)" ), c(gc = "1996", tf = "2012")[Population])) %>%
   ggplot(aes(PC1, PC2, colour = Population)) +
   geom_point(size = 3) +
-  scale_colour_manual(values = c(rgb(0, 0, 0, 0.7),
-                                 rgb(0.8, 0.2, 0.2, 0.9),
-                                 rgb(0.2, 0.8, 0.2, 0.9),
-                                 rgb(0.5, 0.5, 1, 0.7))) 
+  scale_colour_manual(values = popCols) 
 ```
 
 ## Data Export For Generation of Phylogenies
@@ -527,7 +577,8 @@ genotypeResults %>%
          caption = "SNPs with raw p-values < 1e-04 when analysing by genotype. All SNPs were considered significant using an FDR < 0.1")
 ```
 
-```{r manhattanGenotype, echo = FALSE, fig.height=5, fig.width=8, fig.cap = "Manhattan plot showing results for all SNPs on chromosomes 1:21 for analysis by genotype. The horizontal line indicates the cutoff for an FDR of 10%"}
+```{r manhattanGenotype, echo = FALSE, results='hide'}
+pdf(file.path("..", "figures", "Figure3a.pdf"), height = 0.6*h, width = w)
 hLine <- max(filter(genotypeResults, FDR < 0.1)$p)
 genotypeResults %>%
   left_join(allData) %>%
@@ -537,6 +588,20 @@ genotypeResults %>%
   dplyr::select(SNP = snpID, CHR = Chr, BP, P = p) %>%
   manhattan(suggestiveline = FALSE, 
             genomewideline = -log10(hLine))
+dev.off()
+```
+
+```{bash, echo = FALSE}
+convert \
+  -density 600 \
+  -size 1920 \
+  ../figures/Figure3a.pdf \
+  ../figures/Figure3a.png
+```
+
+
+```{r manhattanGenotype_png, echo = FALSE, fig.cap = "Figure 3a: Manhattan plot showing results for all SNPs on chromosomes 1:21 for analysis by genotype. The horizontal line indicates the cutoff for an FDR of 10%", out.width='80%'}
+knitr::include_graphics(file.path("..", "figures", "Figure3a.png"))
 ```
 
 
@@ -612,6 +677,38 @@ flkResults <- file.path("..", "results", "flkResults.tsv") %>%
   read_tsv()
 ```
 
+```{r}
+pdf(file.path("..", "figures", "Figure3b.pdf"), height = 0.6*h, width = w)
+hLine <- max(filter(flkResults, FDR < 0.05)$F.LK.p.val)
+hLight <- filter(flkResults, P_bonf< 0.05, Chr %in% 1:21)$snpID
+flkResults %>%
+  left_join(allData) %>%
+  distinct(snpID, .keep_all = TRUE) %>%
+  filter(Chr %in% 1:21) %>%
+  mutate(Chr = as.numeric(Chr)) %>%
+  filter(!is.na(Chr)) %>%
+  dplyr::select(SNP = snpID, CHR = Chr, BP, P = F.LK.p.val) %>%
+  manhattan(suggestiveline = FALSE, 
+            genomewideline = -log10(hLine),
+            highlight = hLight)
+dev.off()
+```
+
+
+```{bash, echo = FALSE}
+convert \
+  -density 600 \
+  -size 1920 \
+  ../figures/Figure3b.pdf \
+  ../figures/Figure3b.png
+```
+
+
+```{r manhattanFLK_png, echo = FALSE, fig.cap = "Figure 3b: Manhattan plot showing results for all SNPs on chromosomes 1:21 for analysis using FLK. The horizontal line indicates the cutoff for an FDR of 5%. Highlighted SNPs were considered significant after Bonferroni's adjustment", out.width='80%'}
+knitr::include_graphics(file.path("..", "figures", "Figure3b.png"))
+```
+
+
 ## Bayescan Analysis
 
 ```{r snpsForBayescan}
@@ -655,13 +752,33 @@ sigSNPs <- c(filter(genotypeResults,FDR < fdr["genotype"])$snpID,
 No novel SNPs were detected by Bayescan or by allele frequency down to an FDR of 0.1 or 0.05 respectively.
 As such, the Bayescan & allele frequency analyses were disregarded going forward.
 
-```{r upSetSNPs, echo = FALSE, fig.cap="Overlap between the lists of SNPs considered as associated with the different populations under either of the two analytic approaches, using an FDR of 0.1 for 'Analysis by Genotype' and Bayescan, with an FDR of 0.05 for 'Analysis by Allele' and FLK.", fig.width=6, fig.height=5, results='hide', fig.show='asis'}
+```{r upSetSNPs, echo = FALSE, results='hide'}
+pdf(file.path("..", "figures", "Figure4.pdf"), height = 0.6*h, width = w, onefile = FALSE)
 sigSNPs %>% 
   dplyr::select(-snpID) %>% 
   lapply(which) %>% 
   fromList() %>% 
-  upset()
+  set_colnames(str_to_title(colnames(.))) %>%
+  set_colnames(gsub("Flk", "FLK", colnames(.))) %>%
+  upset(text.scale = 1.7)
+dev.off()
 ```
+
+
+
+```{bash, echo = FALSE}
+convert \
+  -density 600 \
+  -size 1920 \
+  ../figures/Figure4.pdf \
+  ../figures/Figure4.png
+```
+
+
+```{r upSetSNPs_png, echo = FALSE,  fig.cap="Overlap between the lists of SNPs considered as associated with the different populations under either of the two analytic approaches, using an FDR of 0.1 for 'Analysis by Genotype' and Bayescan, with an FDR of 0.05 for 'Analysis by Allele' and FLK.", out.width='80%'}
+knitr::include_graphics(file.path("..", "figures", "Figure4.png"))
+```
+
 
 ### SNPs Associated With Populations Under Both Approaches
 
