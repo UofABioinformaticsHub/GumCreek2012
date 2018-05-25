@@ -679,7 +679,7 @@ alleleResults %>%
 ```
 
 
-```{r manhattanAllele, echo = FALSE, fig.height=5, fig.width=8, fig.cap = "Manhattan plot showing results for all SNPs on chromosomes 1:21 when analysing by allele frequencies. The horizontal line indicates the cutoff for an FDR of 10%, with SNPs considered significant under the Bonferroni adjustnt shown in green."}
+```{r manhattanAllele, echo = FALSE, fig.height=5, fig.width=8, fig.cap = "Manhattan plot showing results for all SNPs on chromosomes 1:21 when analysing by allele frequencies. The horizontal line indicates the cutoff for an FDR of 10%, with SNPs considered significant under the Bonferroni adjustment shown in green."}
 hLine <- max(filter(alleleResults, FDR < 0.1)$p)
 hLight <- filter(alleleResults, adjP< 0.05)$snpID
 alleleResults %>%
