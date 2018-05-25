@@ -3,12 +3,12 @@ title: "SNP Analysis"
 author: "Steve Pederson"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
-html_document: 
-fig_caption: yes
-fig_height: 8
-fig_width: 10
-toc: yes
-toc_depth: 2
+  html_document: 
+    fig_caption: yes
+    fig_height: 8
+    fig_width: 10
+    toc: yes
+    toc_depth: 2
 ---
 
 ```{r setup, include=FALSE}
