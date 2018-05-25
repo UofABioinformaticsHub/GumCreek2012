@@ -124,7 +124,7 @@ hitsIn100kb <- findOverlaps(
 
 ```{r neutLoci}
 neutLoci <- allSnpsGR %>%
-  extract(setdiff(seq_along(.), queryHits(hitsIn100kb))) %>%
+  magrittr::extract(setdiff(seq_along(.), queryHits(hitsIn100kb))) %>%
   mcols() %>%
   extract2("snpID")
 ```

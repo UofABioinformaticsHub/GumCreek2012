@@ -3,12 +3,12 @@ title: "SNP Analysis"
 author: "Steve Pederson"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
-  html_document: 
-    fig_caption: yes
-    fig_height: 8
-    fig_width: 10
-    toc: yes
-    toc_depth: 2
+html_document: 
+fig_caption: yes
+fig_height: 8
+fig_width: 10
+toc: yes
+toc_depth: 2
 ---
 
 ```{r setup, include=FALSE}
@@ -30,6 +30,7 @@ library(qqman)
 library(sp)
 library(ggmap)
 library(rgdal)
+library(ggsn)
 ```
 
 
@@ -40,7 +41,7 @@ alpha <- 0.05
 theme_set(theme_bw())
 ```
 
-```{r}
+```{r pdfParams}
 w <- 169/25.4
 h <- 169/25.4
 ```
@@ -148,7 +149,7 @@ missingBySample <- minorAlleleCounts %>%
 
 ```{r missingByAllele}
 missingByAllele <- minorAlleleCounts %>%
-  extract(missingBySample <= 1/3,) %>%
+  magrittr::extract(missingBySample <= 1/3,) %>%
   apply(MARGIN = 2, function(x){mean(is.na(x))}) 
 ```
 
@@ -176,7 +177,7 @@ After this process it was noted that there was no allelic differences amongst th
 These loci were also removed before performing PCA.
 
 ```{r dataForPCA_subset}
-dataForPCA %<>% extract(, apply(., MARGIN = 2, function(x){length(unique(x))}) > 1)
+dataForPCA %<>% magrittr::extract(, apply(., MARGIN = 2, function(x){length(unique(x))}) > 1)
 ```
 
 
@@ -189,9 +190,9 @@ outgroupPCA <- dataForPCA %>%
 ```
 
 The two Gum Creek populations (1996 & 2012) clearly showed differences to the outgroup, however a strong "tail" was noted for some of the 2012 population along PC2.
-Samples were assigned to groups using *k*-means clustering (*k = 3*), with 1996 and 2012 samples further identified within their common cluster.
-The samples classified as forming this tail were identified and the collection region for these samples was investigated, using the GPS collection point.
-The vast majority were found to come from the central collection region, and this sub-population was added to the PCA plot, based on the initial *k*-means clustering.
+Samples were assigned to groups using *k*-means clustering (*k = 3*) based on the first 3 principal components.
+The samples classified as forming this tail were investigated using the GPS collection point.
+The vast majority were found to come from the central collection region, and members of this sub-population are indicated on the PCA plot, as based on the initial *k*-means clustering.
 
 
 ```{r pcaForPlot}
@@ -204,7 +205,7 @@ pcaForPlot <- outgroupPCA$x %>%
   mutate(Population = allelePops[sampleID]) %>%
   rowwise() %>%
   mutate(Population = if_else(Population == "gc", "Gum Creek (1996)",
-                              if_else(Population == "ora", "Oraparinna (2012)", "Turretfield (2010)"))) %>%
+                              if_else(Population == "ora", "Oraparinna (2012)", "Outgroup (Turretfield)"))) %>%
   left_join(sampleMetadata, by = c("sampleID" = "ID")) %>%
   ungroup() %>%
   mutate(Cluster = kmeans(cbind(PC1, PC2, PC3), 3)$cluster)
@@ -227,9 +228,9 @@ pdf(file.path("..", "figures", "Figure1.pdf"), width = w, height = h)
 fs <- 14
 ps <- 3
 popCols <- c(rgb(0, 0, 0, 0.7), 
-             rgb(0.5, 0.5, 1, 0.7),
              rgb(0.8, 0.2, 0.2, 0.9), 
-             rgb(0.2, 0.8, 0.2, 0.9))
+             rgb(0.2, 0.8, 0.2, 0.9),
+             rgb(0.5, 0.5, 1, 0.7))
 p12 <- ggplot(pcaForPlot, aes(PC1, PC2, colour = Population)) +
   geom_point(size = ps) +
   scale_colour_manual(values = popCols) +
@@ -251,7 +252,7 @@ p23 <- ggplot(pcaForPlot, aes(PC2, PC3, colour = Population)) +
         title = element_text(size = fs),
         plot.margin = unit(c(1, 1, 1, 1)*1.5, "mm"),
         legend.position = "none")
-vp12 <- viewport(0, 0, 0.735, 0.5, just = c(0, 0))
+vp12 <- viewport(0, 0, 0.8, 0.5, just = c(0, 0))
 vp13 <- viewport(0, 0.5, 0.5, 0.5, just = c(0, 0))
 vp23 <- viewport(0.5, 0.5, 0.5, 0.5, just = c(0, 0))
 grid.newpage()
@@ -264,10 +265,10 @@ dev.off()
 ```{bash, echo = FALSE}
 # Convert the pdf to png for embedding into the html
 convert \
-  -density 600 \
-  -size 1920 \
-  ../figures/Figure1.pdf \
-  ../figures/Figure1.png
+-density 600 \
+-size 1920 \
+../figures/Figure1.pdf \
+../figures/Figure1.png
 ```
 
 
@@ -278,35 +279,57 @@ knitr::include_graphics(file.path("..", "figures", "Figure1.png"))
 ```{r setupAnnotations}
 gc <- SpatialPoints(cbind(x = 138.655972, y = -31.200305))
 proj4string(gc) <- "+proj=longlat +ellps=GRS80 +no_defs"
-saPoly <-  file.path("..", "60804_shp", "Gazeteer") %>%
-  readOGR(layer = "GazetteerAreas") 
-proj4string(saPoly) <- proj4string(gc)
+saPoly <-  file.path("..", "data", "saPoly.RDS") %>% readRDS()
+roads <- file.path("..", "data", "roads.RDS") %>% readRDS()
 ```
 
 ```{r ggMap, echo=FALSE, cache=TRUE}
 loc <- c(range(sampleMetadata$Longitude) %>% mean,
          range(sampleMetadata$Latitude) %>% mean)
-ggMap <- get_map(loc, zoom = 12, maptype = "terrain", source = "google")
+ggMap <- get_map(loc, zoom = 12, maptype = "terrain", color = "bw")
 ```
 
 ```{r mainMap}
+xBreaks <- seq(138.65, 138.8, by = 0.05)
+xLabs <- parse(text = paste(xBreaks, "*degree ~ W", sep = ""))
+yBreaks <- seq(-31.2, -31.32, by = -0.04)
+yLabs <- parse(text = paste(-yBreaks, "*degree ~ S", sep = ""))
+leftN <- data_frame(x = c(138.7965, 138.8, 138.8),
+                    y = c(-31.2, -31.198, -31.193))
+rightN <- data_frame(x = c(138.8, 138.8, 138.8035),
+                     y = c(-31.193, -31.198, -31.2))
 zoomPlot <- ggmap(ggMap, extent = "normal", maprange = FALSE) +
-  geom_text(x = 138.74, y = -31.29, 
-            aes(label = "Flinders Ranges NP"), colour = "grey10") +
-  geom_text(aes(x, y, label = "Gum Creek Homestead"),
-            data = as.data.frame(gc), nudge_y = 0.005) +
-  geom_point(aes(x, y), data = as.data.frame(gc)) +
+  geom_path(aes(long, lat, group = group), data = subset(roads, SURFACE== "UNSE"), linetype = 2, size = 0.3) + 
+  geom_path(aes(long, lat, group = group), data = subset(roads, SURFACE!= "UNSE"), linetype = 1, size = 0.4) +
+  geom_label(x = 138.74, y = -31.29, label = "Flinders Ranges NP", alpha = 0.4) +
+  geom_label(x = 138.72, y = -31.22, label = "Gum Creek", alpha = 0.4) +
+  geom_point(aes(x, y), data = as.data.frame(gc), shape = 3, size = 3) +
+  geom_text(aes(x, y), label = "HS", data = as.data.frame(gc), nudge_y = 0.005) +
   geom_polygon(data = subset(saPoly, F_CODE == "HD"),
                aes(long, lat, group = group),
-               fill = rgb(1, 1, 1, 0), colour = "grey10", size = 0.2) +
+               fill = rgb(1, 1, 1, 0), colour = "grey10", size = 0.3) +
   geom_polygon(data = subset(saPoly, F_CODE == "PARK"),
                aes(long, lat, group = group),
-               fill = rgb(1, 1, 1, 0), colour = "grey10", size = 0.1) +
-  geom_point(data= pcaForPlot, aes(Longitude, Latitude, colour = Population), size = ps) +
-  scale_colour_manual(values = popCols) +
-  coord_map(xlim=c(138.618, 138.81),
-            ylim=c(-31.335, -31.18)) +
+               fill = rgb(1, 1, 1, 0), colour = "grey10", size = 0.2) +
+  geom_point(data= filter(pcaForPlot, grepl("ora", sampleID)), 
+             aes(Longitude, Latitude, colour = Population), size = 0.9*ps) +
+  geom_polygon(aes(x, y), data = leftN, fill = "white", colour = "grey10", size = 0.4) +
+  geom_polygon(aes(x, y), data = rightN, fill = "grey10", colour = "grey10", size = 0.4) +
+  geom_text(x = 138.8, y = -31.19, label = "N", 
+            colour = "grey10", size = 4) +
+  scale_colour_manual(values = popCols[2:3]) +
+  coord_cartesian(xlim=c(138.618, 138.81),
+                  ylim=c(-31.335, -31.18),
+                  expand = 0) +
+  scale_x_continuous(breaks = xBreaks, labels = xLabs) +
+  scale_y_continuous(breaks = yBreaks, labels = yLabs) +
   guides(colour = FALSE) +
+  ggsn::scalebar(x.min = 138.618, x.max = 138.81, 
+           y.min = -31.335, y.max = -31.18,
+           dist = 2, dd2km = TRUE, model = 'GRS80', 
+           height = 0.012, st.size = 4,
+           location = 'bottomright',
+           anchor = c(x =138.8, y = -31.328)) +
   labs(x = "Longitude",
        y = "Latitude") +
   theme_bw() +
@@ -315,29 +338,22 @@ zoomPlot <- ggmap(ggMap, extent = "normal", maprange = FALSE) +
 ```
 
 ```{r fullAusMap, results='hide'}
-ausPolygon <- file.path("..", "60804_shp", "framework") %>%
-  readOGR(layer = "aus25fgd_r") %>%
-  subset(AREA > 6)
+ausPolygon <- file.path("..", "data", "ausPolygon.RDS") %>% readRDS()
 ausPts <- SpatialPoints(cbind(x = loc[1], y = loc[2]))
 proj4string(ausPts) <- proj4string(ausPolygon)
 ausPlot <- ggplot()+
   geom_polygon(data=ausPolygon, 
                aes(long, lat, group = group), fill = "white", colour = "black") + 
   geom_point(data = as.data.frame(ausPts), aes(x, y), size = 1.5) +
-  theme_bw() +
-  theme(panel.grid = element_blank(),
-        axis.title = element_blank(),
-        axis.text = element_blank(),
-        axis.ticks = element_blank(),
-        plot.margin = unit(c(0, 0, 0, 0), "mm"))
+  theme_void() +
+  theme(plot.background = element_rect(fill = "white", colour = "black"))
 ```
-
 
 ```{r plotWithInset, echo = FALSE, results='hide', fig.height=7, fig.width=8}
 pdf(file.path("..", "figures", "Figure2.pdf"),width = w, height = h) 
 grid.newpage()
 vp1 <- viewport(0.5,0.5, 1, 1)
-vp2 <- viewport(0.315, 0.3, 0.33, 0.33)
+vp2 <- viewport(0.32, 0.25, 0.33, 0.33)
 print(zoomPlot, vp = vp1)
 print(ausPlot, vp = vp2)
 dev.off()
@@ -345,10 +361,10 @@ dev.off()
 
 ```{bash, echo = FALSE}
 convert \
-  -density 600 \
-  -size 1920 \
-  ../figures/Figure2.pdf \
-  ../figures/Figure2.png
+-density 600 \
+-size 1920 \
+../figures/Figure2.pdf \
+../figures/Figure2.png
 ```
 
 
@@ -359,22 +375,37 @@ knitr::include_graphics(file.path("..", "figures", "Figure2.png"))
 
 ```{r plotZoom, echo=FALSE, fig.cap="Zoomed-in view of the central region for 2012 samples with colours showing sub-populations defined by PCA analysis. The region considered to be the Central Region is shaded in red. Due to overlapping GPS points a small amount of jitter has been added to the x-axis.", fig.height=7, fig.width=7}
 zoomLoc <- c(138.753, -31.242)
+xBreaks <- seq(138.74, 138.76, by = 0.01)
+xLabs <- parse(text = paste(xBreaks, "*degree ~ W", sep = ""))
+yBreaks <- seq(-31.235, -31.25, by = -0.005)
+yLabs <- parse(text = paste(-yBreaks, "*degree ~ S", sep = ""))
 central <- rbind(x = c(138.749, 138.755),
                  y = c(-31.2365, -31.2495)) %>%
   set_colnames(c("min", "max"))
-get_map(zoomLoc, zoom = 15, maptype = "terrain", source = "google") %>%
+get_map(zoomLoc, zoom = 15, maptype = "terrain", source = "google", color = "bw") %>%
   ggmap() +
   geom_jitter(data= pcaForPlot, aes(Longitude, Latitude, colour = Population), size = 3, width = 0.0005, height = 0) +
   geom_rect(xmin = central["x", "min"],
             xmax = central["x", "max"],
             ymin = central["y", "min"],
             ymax = central["y", "max"],
-            fill = "red", alpha = 0.05) +
+            fill = "red", alpha = 0.01, colour = "black") +
   scale_colour_manual(values = popCols) +
+  scale_x_continuous(breaks = xBreaks, labels = xLabs) +
+  scale_y_continuous(breaks = yBreaks, labels = yLabs) +
   theme_bw() +
   guides(colour = FALSE) +
   labs(x = "Longitude",
-       y = "Latitude")
+       y = "Latitude") +
+  coord_cartesian(xlim=c(138.74, 138.762),
+                  ylim=c(-31.253, -31.231),
+                  expand = 0) +
+  ggsn::scalebar(x.min = 138.74, x.max = 138.762, 
+           y.min = -31.253, y.max = -31.231,
+           dist = 0.25, dd2km = TRUE, model = 'GRS80', 
+           height = 0.012, st.size = 4,
+           location = 'bottomright',
+           anchor = c(x =138.761, y = -31.252))
 ```
 
 In order to more accurately define samples based on the collection region, 2012 samples located within the bounds of the shaded region above were classed as being from the central region, whilst other 2012 samples were considered as being from the outer region.
@@ -459,7 +490,7 @@ reducedPCA$x %>%
   mutate(Central = sampleID %in% filter(pcaForPlot, grepl("Central", Population))$sampleID,
          Population = as.character(Population),
          Population = if_else(grepl("[Oo]ra", Population), 
-                              if_else(Central, "2012 (Central)", "2012 (Outer)" ), c(gc = "1996", tf = "2012")[Population])) %>%
+                              if_else(Central, "2012 (Central)", "2012 (Outer)" ), c(gc = "1996", tf = "Outgroup (Turretfield)")[Population])) %>%
   ggplot(aes(PC1, PC2, colour = Population)) +
   geom_point(size = 3) +
   scale_colour_manual(values = popCols) 
@@ -479,7 +510,7 @@ minorAlleleCounts %>%
   dplyr::select(sampleID, Population, contains("_")) %>%
   filter(!is.na(Population)) %>%
   mutate(Population = ifelse(grepl("Oraparinna", Population),
-                         c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
+                             c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
          colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
          colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
          colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
@@ -494,14 +525,14 @@ The same data was also exported subsetting SNPs based on collection region effec
 ```{r}
 gzOut <- file.path("..", "data", "regionSnpForPhylo.tsv.gz") %>% gzfile("w")
 minorAlleleCounts %>% 
-  extract(, regionSNPs) %>%
+  magrittr::extract(, regionSNPs) %>%
   as.data.frame() %>% 
   rownames_to_column("sampleID") %>%
   left_join(pcaForPlot) %>%
   dplyr::select(sampleID, Population, contains("_")) %>%
   filter(!is.na(Population)) %>%
   mutate(Population = ifelse(grepl("Oraparinna", Population),
-                         c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
+                             c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
          colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
          colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
          colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
@@ -514,14 +545,14 @@ close(gzOut)
 ```{r}
 gzOut <- file.path("..", "data", "noRegionSnpForPhylo.tsv.gz") %>% gzfile("w")
 minorAlleleCounts %>% 
-  extract(, setdiff(colnames(.), regionSNPs)) %>%
+  magrittr::extract(, setdiff(colnames(.), regionSNPs)) %>%
   as.data.frame() %>% 
   rownames_to_column("sampleID") %>%
   left_join(pcaForPlot) %>%
   dplyr::select(sampleID, Population, contains("_")) %>%
   filter(!is.na(Population)) %>%
   mutate(Population = ifelse(grepl("Oraparinna", Population),
-                         c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
+                             c("Oraparinna Outer (2012)", "Oraparinna Central (2012)")[oraRegions[sampleID,"Central"] + 1], Population),
          colour = ifelse(grepl("Turretfield", Population), rgb(0.5, 0.5, 1, 0.7), ""),
          colour = ifelse(grepl("Gum", Population), rgb(0, 0, 0, 0.7), colour),
          colour = ifelse(grepl("Central", Population), rgb(0.8, 0.2, 0.2, 0.9), colour),
@@ -593,10 +624,10 @@ dev.off()
 
 ```{bash, echo = FALSE}
 convert \
-  -density 600 \
-  -size 1920 \
-  ../figures/Figure3a.pdf \
-  ../figures/Figure3a.png
+-density 600 \
+-size 1920 \
+../figures/Figure3a.pdf \
+../figures/Figure3a.png
 ```
 
 
@@ -697,10 +728,10 @@ dev.off()
 
 ```{bash, echo = FALSE}
 convert \
-  -density 600 \
-  -size 1920 \
-  ../figures/Figure3b.pdf \
-  ../figures/Figure3b.png
+-density 600 \
+-size 1920 \
+../figures/Figure3b.pdf \
+../figures/Figure3b.png
 ```
 
 
@@ -768,10 +799,10 @@ dev.off()
 
 ```{bash, echo = FALSE}
 convert \
-  -density 600 \
-  -size 1920 \
-  ../figures/Figure4.pdf \
-  ../figures/Figure4.png
+-density 600 \
+-size 1920 \
+../figures/Figure4.pdf \
+../figures/Figure4.png
 ```
 
 
