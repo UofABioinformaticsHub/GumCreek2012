@@ -7,7 +7,6 @@ output:
     fig_caption: yes
     fig_height: 8
     fig_width: 10
-    keep_md: yes
     toc: yes
     toc_depth: 2
 ---
@@ -34,6 +33,12 @@ library(reshape2)
 logit <- binomial()$linkfun
 inv.logit <- binomial()$linkinv
 ```
+
+```{r pdfParams}
+w <- 169/25.4
+h <- 169/25.4
+```
+
 
 # Introduction
 
@@ -270,7 +275,8 @@ cp <- paste("Allele frequencies in the two populations.",
 ```
 
 
-```{r flkWithDriftBands, echo=FALSE, fig.height=7, fig.cap=cp}
+```{r exportFig4, echo=FALSE}
+pdf(file.path("..", "figures", "Figure4.pdf"), width = w, height = 0.8*h)
 flkResults %>%
   filter(!snpID %in% sigSnps) %>%
   ggplot() +
@@ -300,18 +306,31 @@ flkResults %>%
              data = filter(flkResults, snpID %in% sigSnps),
              colour = rgb(0,0.8,0.2), size = 2) +
   geom_label_repel(aes(x = `Gum Creek (1996)`, y = `Oraparinna (2012)`, label = snpID),
-                  data = filter(flkResults, snpID %in% sigSnps,
-                                `Oraparinna (2012)` >  `Gum Creek (1996)`,
-                                `Oraparinna (2012)` > 0.8),
-                  colour = rgb(0, 0.8, 0.2)) +
-  geom_label_repel(aes(x = `Gum Creek (1996)`, y = `Oraparinna (2012)`, label = snpID),
-                   data = filter(flkResults, snpID %in% sigSnps, P_bonf < 0.1),
-                   colour = rgb(0, 0.8, 0.2)) +
+                   data = filter(flkResults, FDR < 0.01 | snpID %in% filter(genotypeResults, FDR < 0.1)$snpID),
+                  colour = rgb(0, 0.8, 0.2),
+                  alpha = 0.85,
+                  size = 3) +
   scale_colour_manual(values = c("black", rgb(0, 0.5, 0))) +
+  labs(x = expression(f[1996]),
+       y = expression(f[2012])) +
   theme_bw() +
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size=  14))
+dev.off()
 ```
 
+```{bash, echo = FALSE}
+convert \
+-density 600 \
+-size 1920 \
+../figures/Figure4.pdf \
+../figures/Figure4.png
+```
+
+```{r flkWithDriftBands, echo=FALSE, fig.height=7, fig.cap=cp}
+knitr::include_graphics(file.path("..", "figures", "Figure4.png"))
+```
 
 
 ```{r}
