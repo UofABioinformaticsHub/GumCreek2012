@@ -501,7 +501,9 @@ bind_rows(
   facet_wrap(~Status, ncol = 2) +
   scale_colour_manual(values = popCols) +
   theme(legend.position = "top",
-        text = element_text(size = fs*1.2))
+        text = element_text(size = fs*1.5),
+        strip.text = element_text(size = fs*1.4),
+        axis.title = element_text(size = fs*1.4))
 dev.off()
 ```
 
@@ -632,7 +634,7 @@ genotypeResults %>%
 ```
 
 ```{r manhattanGenotype, echo = FALSE, results='hide'}
-pdf(file.path("..", "figures", "Figure3a.pdf"), height = 0.6*h, width = w)
+pdf(file.path("..", "figures", "FigureS3a.pdf"), height = 0.6*h, width = w)
 hLine <- max(filter(genotypeResults, FDR < 0.1)$p)
 genotypeResults %>%
   left_join(allData) %>%
@@ -649,13 +651,13 @@ dev.off()
 convert \
 -density 600 \
 -size 1920 \
-../figures/Figure3a.pdf \
-../figures/Figure3a.png
+../figures/FigureS3a.pdf \
+../figures/FigureS3a.png
 ```
 
 
 ```{r manhattanGenotype_png, echo = FALSE, fig.cap = "Figure 3a: Manhattan plot showing results for all SNPs on chromosomes 1:21 for analysis by genotype. The horizontal line indicates the cutoff for an FDR of 10%", out.width='80%'}
-knitr::include_graphics(file.path("..", "figures", "Figure3a.png"))
+knitr::include_graphics(file.path("..", "figures", "FigureS3a.png"))
 ```
 
 
@@ -732,7 +734,7 @@ flkResults <- file.path("..", "results", "flkResults.tsv") %>%
 ```
 
 ```{r}
-pdf(file.path("..", "figures", "Figure3b.pdf"), height = 0.6*h, width = w)
+pdf(file.path("..", "figures", "FigureS3b.pdf"), height = 0.6*h, width = w)
 hLine <- max(filter(flkResults, FDR < 0.05)$F.LK.p.val)
 hLight <- filter(flkResults, P_bonf< 0.05, Chr %in% 1:21)$snpID
 flkResults %>%
@@ -753,13 +755,13 @@ dev.off()
 convert \
 -density 600 \
 -size 1920 \
-../figures/Figure3b.pdf \
-../figures/Figure3b.png
+../figures/FigureS3b.pdf \
+../figures/FigureS3b.png
 ```
 
 
 ```{r manhattanFLK_png, echo = FALSE, fig.cap = "Figure 3b: Manhattan plot showing results for all SNPs on chromosomes 1:21 for analysis using FLK. The horizontal line indicates the cutoff for an FDR of 5%. Highlighted SNPs were considered significant after Bonferroni's adjustment", out.width='80%'}
-knitr::include_graphics(file.path("..", "figures", "Figure3b.png"))
+knitr::include_graphics(file.path("..", "figures", "FigureS3b.png"))
 ```
 
 
@@ -807,14 +809,14 @@ No novel SNPs were detected by Bayescan or by allele frequency down to an FDR of
 As such, the Bayescan & allele frequency analyses were disregarded going forward.
 
 ```{r upSetSNPs, echo = FALSE, results='hide'}
-pdf(file.path("..", "figures", "Figure4.pdf"), height = 0.6*h, width = w, onefile = FALSE)
+pdf(file.path("..", "figures", "Figure3.pdf"), height = 0.6*h, width = w, onefile = FALSE)
 sigSNPs %>% 
   dplyr::select(-snpID) %>% 
   lapply(which) %>% 
   fromList() %>% 
   set_colnames(str_to_title(colnames(.))) %>%
   set_colnames(gsub("Flk", "FLK", colnames(.))) %>%
-  upset(text.scale = 1.7)
+  upset(text.scale = 1.6)
 dev.off()
 ```
 
@@ -824,13 +826,13 @@ dev.off()
 convert \
 -density 600 \
 -size 1920 \
-../figures/Figure4.pdf \
-../figures/Figure4.png
+../figures/Figure3.pdf \
+../figures/Figure3.png
 ```
 
 
 ```{r upSetSNPs_png, echo = FALSE,  fig.cap="Overlap between the lists of SNPs considered as associated with the different populations under either of the two analytic approaches, using an FDR of 0.1 for 'Analysis by Genotype' and Bayescan, with an FDR of 0.05 for 'Analysis by Allele' and FLK.", out.width='80%'}
-knitr::include_graphics(file.path("..", "figures", "Figure4.png"))
+knitr::include_graphics(file.path("..", "figures", "Figure3.png"))
 ```
 
 
