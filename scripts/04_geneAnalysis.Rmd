@@ -442,7 +442,9 @@ A total of `r nrow(filter(goResults40kb, observed > expected, FDR < 0.05))` GO t
 
 ```{r, echo=FALSE}
 goResults40kb %>%
-  filter(observed > expected, FDR < 0.05) %>%
+  filter(observed >= 3) %>% 
+  mutate(FDR= p.adjust(p, "fdr")) %>% 
+  filter(observed > expected, FDR < 0.1) %>%
   mutate(Term = Term(go_id),
          Ont= Ontology(go_id)) %>%
   set_names(str_to_title(names(.))) %>%
@@ -463,7 +465,9 @@ The genes associated with each of these GO terms is given below:
 
 ```{r, echo=FALSE}
 goResults40kb %>%
-    filter(observed > expected, FDR < 0.05) %>% 
+  dplyr::filter(observed >= 3) %>% 
+  mutate(FDR= p.adjust(p, "fdr")) %>% 
+  dplyr::filter(observed > expected, FDR < 0.1) %>%
   dplyr::select(go_id) %>% 
   left_join(ALLGO2ENS) %>% 
   mutate(Term = Term(go_id)) %>% 
@@ -471,15 +475,22 @@ goResults40kb %>%
             by = c("ensembl_gene_id" = "gene_id")) %>%
   dplyr::select(go_id, Term, ensembl_gene_id, Name) %>%
   as.data.frame() %>% 
+  dplyr::filter(ensembl_gene_id %in% sigGenesIn40kb$gene_id) %>%
   mutate(go_id = ifelse(duplicated(go_id), "", go_id),
          Term = ifelse(duplicated(Term), "", Term),
-         Name = ifelse(is.na(Name), "", Name)) %>%
+         Name = ifelse(is.na(Name), "", Name),
+         Name = ifelse(ensembl_gene_id == "ENSOCUG00000021126",
+                       "MT-2A", Name),
+         Name = ifelse(ensembl_gene_id == "ENSOCUG00000021209",
+                       "MT-2D", Name),
+         Name = ifelse(ensembl_gene_id == "ENSOCUG00000029235",
+                       "MT-1A", Name)) %>%
   dplyr::rename(`GO ID` = go_id,
          `Gene ID` = ensembl_gene_id) %>%
   pander(justify = "llll",
          split.cells = Inf,
          split.table = Inf,
-         caption = "Genes associated wth each enriched GO term")
+         caption = "Genes within 40kb of significant SNPs which are associated wth each enriched GO term")
 ```
 
 
