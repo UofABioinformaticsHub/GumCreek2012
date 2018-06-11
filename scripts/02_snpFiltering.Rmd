@@ -4,7 +4,6 @@ author: "Steve Pederson"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   html_document: 
-    keep_md: yes
     toc: yes
 ---
 
