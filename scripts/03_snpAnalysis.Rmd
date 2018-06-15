@@ -874,7 +874,7 @@ sigSNPs %>%
 ```
 
 
-```{r genotypesBothModels, echo = FALSE,fig.cap = "Estimated genotype frequencies for SNPs found to be significant under both models. In each case the `A` allele represents the major allele in the 1996 population.", fig.width=9, fig.height=6}
+```{r genotypesBothModels, echo = FALSE,fig.cap = "Estimated genotype frequencies for SNPs found to be significant under both Full Genotype and FLK models. In each case the `A` allele represents the major allele in the 1996 population.", fig.width=9, fig.height=6}
 sigSNPs %>%
   filter(genotype, flk) %>%
   dplyr::select(snpID) %>%
@@ -930,7 +930,7 @@ sigSNPs %>%
                          "All SNPs were considered as differentially associated with the two populations under FLK analysis to an FDR of 5\\%."))
 ```
 
-```{r flkModelOnly, echo = FALSE,fig.cap = "Estimated allele frequencies for SNPs found to be significant under analysis by allele only. In each case the `A` allele represents the major allele in the 1996 population.", fig.width=9, fig.height=9}
+```{r flkModelOnly, echo = FALSE,fig.cap = "Estimated allele frequencies for SNPs found to be significant under analysis by FLK only. In each case the `A` allele represents the major allele in the 1996 population.", fig.width=9, fig.height=9}
 sigSNPs %>%
   filter(!genotype, flk) %>%
   dplyr::select(snpID) %>%
