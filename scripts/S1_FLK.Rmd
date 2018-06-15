@@ -26,6 +26,7 @@ library(reshape2)
 library(pander)
 library(scales)
 library(stringr)
+library(qqman)
 ```
 
 ```{r setParamsFLK}
@@ -249,10 +250,26 @@ flkResults <- testData %>%
 
 A total of `r sum(flkResults$P_bonf < 0.05)` SNPs retained significance after the Bonferroni adjustment with a total of `r sum(flkResults$FDR < 0.05)` being considered in the larger set of SNPs with an FDR of 0.05.
 
-```{r}
+```{r, eval=FALSE}
 flkResults %>%
   write_tsv( file.path("..", "results", "flkResults.tsv"))
 ```
+
+```{r, manhattanFLK, echo = FALSE, fig.height=5, fig.width=8, fig.cap = "Manhattan plot showing results for all SNPs on chromosomes 1:21 when analysing using the FLK model. The horizontal line indicates the cutoff for an FDR of 5%, with SNPs considered significant under the Bonferroni adjustment shown in green."}
+hLine <- max(filter(flkResults, FDR < 0.05)$F.LK.p.val)
+hLight <- filter(flkResults, P_bonf< 0.05, Chr %in% 1:21)$snpID
+flkResults %>%
+  filter(Chr %in% 1:21) %>%
+  left_join(allData) %>%
+  distinct(snpID, .keep_all = TRUE) %>%
+  mutate(Chr = as.numeric(Chr)) %>%
+  filter(!is.na(Chr)) %>%
+  dplyr::select(SNP = snpID, CHR = Chr, BP, P = F.LK.p.val) %>%
+  manhattan(suggestiveline = FALSE, 
+            genomewideline = -log10(hLine),
+            highlight = hLight)
+```
+
 
 ```{r plotFlkSnps, echo=FALSE, fig.cap="Comparison of allele frequencies in both populations for all tested SNPs. SNPs considered as significant under FLK to an FDR of 0.05 are highlighted in red.", fig.width=8, fig.height=6}
 flkResults %>%
