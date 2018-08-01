@@ -59,7 +59,7 @@ library(driftSim)
 ```{r simParam, cache=TRUE}
 nGen <- 16
 nSim <- 5000
-litterSize <- 30
+litterSize <- 20
 migRate <- 0.15
 alpha <- 0.001
 Ne <- c(`1996` = 222, `2012` = 116)
